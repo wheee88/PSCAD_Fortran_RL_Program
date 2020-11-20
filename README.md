@@ -18,3 +18,5 @@ The multiple programing is based on PSCAD 4.6.3, Intel Fortran compiler, VS 2019
 Almost run through all the procedures, however, for the training of actor network in DDPG algorithm, do not have a idea of how to update it since we do not have a auto-differentiation tool in this Fortran-based NN framework.
 
 (Put this aside)
+
+Credits: The neral network structure: Neural Fortran https://github.com/modern-fortran/neural-fortran
