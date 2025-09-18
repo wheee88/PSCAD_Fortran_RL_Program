@@ -12,7 +12,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     
     ! Local variables
     type(layer_type) :: actor_layer1, actor_layer2
-    real :: state(1), action(1)
+    real :: state(1), action(1), prev_state(1), prev_action(1)
     real :: lower_bound, upper_bound
     real :: noise(1)
     real :: z1(2), z2(1), output(1)
@@ -23,6 +23,11 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     real :: ou_mu, ou_state
     save :: ou_state
     
+    ! Learning parameters
+    real :: learning_rate, alpha
+    real :: gradient1, gradient2
+    save :: prev_state, prev_action
+    
     ! DDPG parameters
     lower_bound = -5.0
     upper_bound = 5.0
@@ -30,6 +35,8 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ou_sigma = 0.2
     ou_dt = 0.01
     ou_mu = 0.0
+    learning_rate = 0.001
+    alpha = 0.1
     
     ! Initialize arrays
     state = 0.0
@@ -56,8 +63,10 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         call layer_set_activation(actor_layer1, 'relu')
         call layer_set_activation(actor_layer2, 'tanh')
         
-        ! Initialize OU noise state
+        ! Initialize OU noise state and previous values
         ou_state = 0.0
+        prev_state = 0.0
+        prev_action = 0.0
         
         action(1) = 0.0
     else
@@ -97,6 +106,31 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         
         ! Add OU noise to action
         action(1) = action(1) + ou_state * 0.1
+        
+        ! Simple learning: update weights based on reward
+        if (Simu_Step_In > 1) then
+            ! Simple policy gradient: if reward is positive, increase weights
+            if (reward > 0.0) then
+                gradient1 = learning_rate * reward * prev_state(1)
+                gradient2 = learning_rate * reward * prev_action(1)
+                
+                ! Update first layer weights
+                if (allocated(actor_layer1 % w)) then
+                    actor_layer1 % w(1, 1) = actor_layer1 % w(1, 1) + gradient1 * alpha
+                    actor_layer1 % w(1, 2) = actor_layer1 % w(1, 2) + gradient1 * alpha
+                end if
+                
+                ! Update second layer weights
+                if (allocated(actor_layer2 % w)) then
+                    actor_layer2 % w(1, 1) = actor_layer2 % w(1, 1) + gradient2 * alpha
+                    actor_layer2 % w(2, 1) = actor_layer2 % w(2, 1) + gradient2 * alpha
+                end if
+            end if
+        end if
+        
+        ! Store current state and action for next iteration
+        prev_state(1) = state(1)
+        prev_action(1) = action(1)
     end if
     
     ! Ensure action is within bounds
