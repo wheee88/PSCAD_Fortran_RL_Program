@@ -2,7 +2,6 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     use mod_random, only: randn
     use mod_activation, only: relu, sigmoid, tanhf
     use mod_layer, only: layer_type, layer_constructor, layer_set_activation
-    use mod_network, only: network_type, network_constructor
     implicit none
     
     ! Input/Output parameters
@@ -12,12 +11,12 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     integer, intent(out) :: Simu_Step_Out
     
     ! Local variables
-    type(layer_type) :: test_layer
-    type(network_type) :: test_network
+    type(layer_type) :: layer1, layer2, layer3
     real :: state(1), action(1)
     real :: lower_bound, upper_bound
     real :: noise(1)
     real :: temp_value(1)
+    real :: hidden(2), output(1)
     
     ! Initialize bounds
     lower_bound = -5.0
@@ -26,6 +25,8 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Initialize arrays
     state = 0.0
     action = 0.0
+    hidden = 0.0
+    output = 0.0
     
     ! Initialize random seed
     call random_seed()
@@ -33,14 +34,17 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Test: Use simplified network_constructor
+    ! Test: Manual network construction (no network_constructor)
     if (Simu_Step_In == 0) then
-        ! Create a simple layer
-        test_layer = layer_constructor(1, 1)
-        call layer_set_activation(test_layer, 'relu')
+        ! Create layers manually
+        layer1 = layer_constructor(1, 2)  ! Input to hidden
+        layer2 = layer_constructor(2, 1)  ! Hidden to output
+        layer3 = layer_constructor(1, 1)  ! Output layer
         
-        ! Create a simple network (simplified version)
-        test_network = network_constructor([1, 2, 1], activation='relu')
+        ! Set activation functions
+        call layer_set_activation(layer1, 'relu')
+        call layer_set_activation(layer2, 'relu')
+        call layer_set_activation(layer3, 'linear')
         
         action(1) = 0.0
     else
