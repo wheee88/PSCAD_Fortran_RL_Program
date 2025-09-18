@@ -1,5 +1,5 @@
 subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
-    use mod_OUActionNoise, only: noise_type, noise_init, noise_call
+    use mod_OUActionNoise, only: noise_type, noise_constructor, noise_init, noise_call
     use mod_network, only: network_type, network_constructor, network_load, network_save, network_output_single
     use mod_buffer, only: buffer_type, buffer_constructor, buffer_nrecord, buffer_learn
     use mod_layer, only: layer_set_activation

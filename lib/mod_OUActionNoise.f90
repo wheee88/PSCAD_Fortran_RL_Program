@@ -3,15 +3,11 @@ module mod_OUActionNoise
     implicit none
     
     private
-    public :: noise_type, noise_init, noise_call
+    public :: noise_type, noise_constructor, noise_init, noise_call
     
     type :: noise_type
         real :: mean, std_dev, theta, dt, x_prev
     end type noise_type
-
-    interface noise_type
-        module procedure noise_constructor
-    end interface noise_type
 
 contains   
     function noise_constructor(mean, std_deviation) result(ou_noise)

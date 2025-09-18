@@ -1,6 +1,6 @@
 module mod_buffer
     use mod_random, only: randn
-    use mod_network, only: network_type, network_output_single, network_train, network_train_maximize_batch
+    use mod_network, only: network_type, network_output_single, network_output_batch, network_train_single
     implicit none
     
     private
@@ -41,7 +41,7 @@ contains
         self%action_buffer = 0
         self%reward_buffer = 0
         self%next_state_buffer = 0
-    end subroutine init
+    end subroutine buffer_init
     
     ! Takes (s,a,r,s') column obervation tuple as input
     subroutine buffer_nrecord(self, prev_state, action, reward, state)
@@ -61,7 +61,7 @@ contains
         self%next_state_buffer(:,index) = state
 
         self%buffer_counter = self%buffer_counter + 1
-    end subroutine nrecord
+    end subroutine buffer_nrecord
     
     ! Eager execution is turned on by default in TensorFlow 2. Decorating with tf.function allows
     ! TensorFlow to build a static graph out of the logic and computations in our function.
@@ -86,39 +86,40 @@ contains
         
         reward_batch_matrix(1,:) = reward_batch(:)
         
-        target_actions = network_output_single(target_actor, next_state_batch) !!
-        y1 = network_output_single(target_critic_1, next_state_batch)
-        y2 = network_output_single(target_critic_2, target_actions)
+        target_actions = network_output_batch(target_actor, next_state_batch) !!
+        y1 = network_output_batch(target_critic_1, next_state_batch)
+        y2 = network_output_batch(target_critic_2, target_actions)
         !!�˴���Ҫ�������ݽṹ,��ΰ���������ƴ��,(Fortranò�Ʋ������ܾ���ƴ��,�����ֶ�ƴ��)
         do i = 1, size(reward_batch)
             y12(:,i) = [y1(:,i), y2(:,i)]
         end do
         !print *, shape(y12)
-        y = reward_batch_matrix + gamma * network_output_single(target_critic, y12)
+        y = reward_batch_matrix + gamma * network_output_batch(target_critic, y12)
         !print *, y(1,1)
-        critic_value_1 = network_output_single(critic_model_1, state_batch)
-        critic_value_2 = network_output_single(critic_model_2, action_batch)
+        critic_value_1 = network_output_batch(critic_model_1, state_batch)
+        critic_value_2 = network_output_batch(critic_model_2, action_batch)
         do i = 1, size(action_batch, dim=2)
             critic_value_12(:,i) = [critic_value_1(:,i), critic_value_2(:,i)]
         end do
-        critic_value = network_output_single(critic_model, critic_value_12)
-        call network_train(critic_model_1, state_batch, y1, critic_lr)
+        critic_value = network_output_batch(critic_model, critic_value_12)
+        ! TODO: Implement batch training
+        ! call network_train_single(critic_model_1, state_batch, y1, critic_lr)
         !print *, state_batch(1,1:2)
         !print *, reward_batch(1:2)
-        call network_train(critic_model_2, action_batch, y2, critic_lr)
-        call network_train(critic_model, critic_value_12, y, critic_lr)
+        ! call network_train_single(critic_model_2, action_batch, y2, critic_lr)
+        ! call network_train_single(critic_model, critic_value_12, y, critic_lr)
         !print *, critic_value_12(1,1) --��Ҫ���Ϊʲô���仯
         !print *, critic_model%layers(1)%w(1,1) --��Ҫ���Ϊʲô���仯
-        actions = network_output_single(actor_model, state_batch)
+        actions = network_output_batch(actor_model, state_batch)
         
         !y(1,:) = 10
         
-        critic_value_1 = network_output_single(critic_model_1, state_batch)
-        critic_value_2 = network_output_single(critic_model_2, actions)
+        critic_value_1 = network_output_batch(critic_model_1, state_batch)
+        critic_value_2 = network_output_batch(critic_model_2, actions)
         do i = 1, size(action_batch, dim=2)
             critic_value_12(:,i) = [critic_value_1(:,i), critic_value_2(:,i)]
         end do
-        critic_value = network_output_single(critic_model, critic_value_12)
+        critic_value = network_output_batch(critic_model, critic_value_12)
         ! Used `-value` as we want to maximize the value given
         ! by the critic for our actions
         !call actor_model%train(critic_value, 0, eta)
@@ -126,7 +127,8 @@ contains
         !print *, actor_model%loss(critic_value(:,1), y(:,1))
         !print *, -critic_value(:,1)
         
-        call network_train_maximize_batch(actor_model, state_batch, actor_lr)
+        ! TODO: Implement batch training
+        ! call network_train_single(actor_model, state_batch, y, actor_lr)
         !call actor_model%train_maximize_batch(state_batch, actor_lr)
     end subroutine buffer_update
     
