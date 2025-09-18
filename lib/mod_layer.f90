@@ -9,6 +9,7 @@ module mod_layer
 
   private
   public :: array1d, array2d, db_init, db_co_sum, dw_init, dw_co_sum, layer_type
+  public :: layer_constructor, layer_set_activation, layer_activation, layer_activation_prime
 
   type :: layer_type
     real, allocatable :: a(:) ! activations
@@ -17,10 +18,6 @@ module mod_layer
     real, allocatable :: z(:) ! arg. to activation function
     character(len=20) :: activation_str ! activation character string
     integer :: activation_type ! 1=linear, 2=gaussian, 3=relu, 4=sigmoid, 5=step, 6=tanh
-  contains
-    procedure, public, pass(self) :: set_activation
-    procedure, public, pass(self) :: activation
-    procedure, public, pass(self) :: activation_prime
   end type layer_type
 
   type :: array1d
@@ -33,7 +30,7 @@ module mod_layer
 
 contains
 
-  type(layer_type) function constructor(this_size, next_size) result(layer)
+  type(layer_type) function layer_constructor(this_size, next_size) result(layer)
     ! Layer class constructor. this_size is the number of neurons in the layer.
     ! next_size is the number of neurons in the next layer, used to allocate
     ! the weights.
@@ -48,7 +45,7 @@ contains
     layer % b = randn(this_size)
     layer % activation_str = 'sigmoid'
     layer % activation_type = 4
-  end function constructor
+  end function layer_constructor
 
   pure type(array1d) function array1d_constructor(length) result(a)
     ! Overloads the default type constructor.
@@ -117,81 +114,78 @@ contains
     end do
   end subroutine dw_co_sum
 
-  pure elemental subroutine set_activation(self, activation)
+  pure elemental subroutine layer_set_activation(layer, activation)
     ! Sets the activation function. Input string must match one of
     ! provided activation functions, otherwise it defaults to sigmoid.
     ! If activation not present, defaults to sigmoid.
-    class(layer_type), intent(in out) :: self
+    type(layer_type), intent(in out) :: layer
     character(len=*), intent(in) :: activation
-    select case(trim(activation))
-      case('linear')
-        self % activation_type = 1
-        self % activation_str = 'linear'
-      case('gaussian')
-        self % activation_type = 2
-        self % activation_str = 'gaussian'
-      case('relu')
-        self % activation_type = 3
-        self % activation_str = 'relu'
-      case('sigmoid')
-        self % activation_type = 4
-        self % activation_str = 'sigmoid'
-      case('step')
-        self % activation_type = 5
-        self % activation_str = 'step'
-      case('tanh')
-        self % activation_type = 6
-        self % activation_str = 'tanh'
-      case default
-        self % activation_type = 4
-        self % activation_str = 'sigmoid'
-    end select
-  end subroutine set_activation
+    if (trim(activation) == 'linear') then
+      layer % activation_type = 1
+      layer % activation_str = 'linear'
+    else if (trim(activation) == 'gaussian') then
+      layer % activation_type = 2
+      layer % activation_str = 'gaussian'
+    else if (trim(activation) == 'relu') then
+      layer % activation_type = 3
+      layer % activation_str = 'relu'
+    else if (trim(activation) == 'sigmoid') then
+      layer % activation_type = 4
+      layer % activation_str = 'sigmoid'
+    else if (trim(activation) == 'step') then
+      layer % activation_type = 5
+      layer % activation_str = 'step'
+    else if (trim(activation) == 'tanh') then
+      layer % activation_type = 6
+      layer % activation_str = 'tanh'
+    else
+      layer % activation_type = 4
+      layer % activation_str = 'sigmoid'
+    end if
+  end subroutine layer_set_activation
 
-  pure function activation(self, x) result(res)
+  pure function layer_activation(layer, x) result(res)
     ! Applies the activation function based on the stored type.
-    class(layer_type), intent(in) :: self
+    type(layer_type), intent(in) :: layer
     real, intent(in) :: x(:)
     real :: res(size(x))
-    select case(self % activation_type)
-      case(1)
-        res = linear(x)
-      case(2)
-        res = gaussian(x)
-      case(3)
-        res = relu(x)
-      case(4)
-        res = sigmoid(x)
-      case(5)
-        res = step(x)
-      case(6)
-        res = tanhf(x)
-      case default
-        res = sigmoid(x)
-    end select
-  end function activation
+    if (layer % activation_type == 1) then
+      res = linear(x)
+    else if (layer % activation_type == 2) then
+      res = gaussian(x)
+    else if (layer % activation_type == 3) then
+      res = relu(x)
+    else if (layer % activation_type == 4) then
+      res = sigmoid(x)
+    else if (layer % activation_type == 5) then
+      res = step(x)
+    else if (layer % activation_type == 6) then
+      res = tanhf(x)
+    else
+      res = sigmoid(x)
+    end if
+  end function layer_activation
 
-  pure function activation_prime(self, x) result(res)
+  pure function layer_activation_prime(layer, x) result(res)
     ! Applies the activation function derivative based on the stored type.
-    class(layer_type), intent(in) :: self
+    type(layer_type), intent(in) :: layer
     real, intent(in) :: x(:)
     real :: res(size(x))
-    select case(self % activation_type)
-      case(1)
-        res = linear_prime(x)
-      case(2)
-        res = gaussian_prime(x)
-      case(3)
-        res = relu_prime(x)
-      case(4)
-        res = sigmoid_prime(x)
-      case(5)
-        res = step_prime(x)
-      case(6)
-        res = tanh_prime(x)
-      case default
-        res = sigmoid_prime(x)
-    end select
-  end function activation_prime
+    if (layer % activation_type == 1) then
+      res = linear_prime(x)
+    else if (layer % activation_type == 2) then
+      res = gaussian_prime(x)
+    else if (layer % activation_type == 3) then
+      res = relu_prime(x)
+    else if (layer % activation_type == 4) then
+      res = sigmoid_prime(x)
+    else if (layer % activation_type == 5) then
+      res = step_prime(x)
+    else if (layer % activation_type == 6) then
+      res = tanh_prime(x)
+    else
+      res = sigmoid_prime(x)
+    end if
+  end function layer_activation_prime
 
 end module mod_layer

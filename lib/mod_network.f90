@@ -1,7 +1,8 @@
 module mod_network
 
   use mod_layer, only: array1d, array2d, db_init, dw_init,&
-                       db_co_sum, dw_co_sum, layer_type
+                       db_co_sum, dw_co_sum, layer_type, layer_constructor, &
+                       layer_set_activation, layer_activation, layer_activation_prime
   use mod_parallel, only: tile_indices
 
   implicit none
@@ -95,13 +96,13 @@ contains
       call dw_init(dw, dims)
 
       n = size(dims)
-      db(n) % array = (layers(n) % a - y) * self % layers(n) % activation_prime(layers(n) % z)
+      db(n) % array = (layers(n) % a - y) * layer_activation_prime(self % layers(n), layers(n) % z)
       dw(n-1) % array = matmul(reshape(layers(n-1) % a, [dims(n-1), 1]),&
                                reshape(db(n) % array, [1, dims(n)]))
 
       do n = size(dims) - 1, 2, -1
         db(n) % array = matmul(layers(n) % w, db(n+1) % array)&
-                      * self % layers(n) % activation_prime(layers(n) % z)
+                      * layer_activation_prime(self % layers(n), layers(n) % z)
         dw(n-1) % array = matmul(reshape(layers(n-1) % a, [dims(n-1), 1]),&
                                  reshape(db(n) % array, [1, dims(n)]))
       end do
@@ -124,13 +125,13 @@ pure subroutine backprop_maximize(self, dw, db)
       call dw_init(dw, dims)
 
       n = size(dims)
-      db(n) % array = 1 * self % layers(n) % activation_prime(layers(n) % z)
+      db(n) % array = 1 * layer_activation_prime(self % layers(n), layers(n) % z)
       dw(n-1) % array = matmul(reshape(layers(n-1) % a, [dims(n-1), 1]),&
                                reshape(db(n) % array, [1, dims(n)]))
 
       do n = size(dims) - 1, 2, -1
         db(n) % array = matmul(layers(n) % w, db(n+1) % array)&
-                      * self % layers(n) % activation_prime(layers(n) % z)
+                      * layer_activation_prime(self % layers(n), layers(n) % z)
         dw(n-1) % array = matmul(reshape(layers(n-1) % a, [dims(n-1), 1]),&
                                  reshape(db(n) % array, [1, dims(n)]))
       end do
@@ -149,7 +150,7 @@ end subroutine backprop_maximize
       layers(1) % a = x
       do n = 2, size(layers)
         layers(n) % z = matmul(transpose(layers(n-1) % w), layers(n-1) % a) + layers(n) % b
-        layers(n) % a = self % layers(n) % activation(layers(n) % z)
+        layers(n) % a = layer_activation(self % layers(n), layers(n) % z)
       end do
     end associate
   end subroutine fwdprop
@@ -163,9 +164,9 @@ end subroutine backprop_maximize
     self % dims = dims
     if (.not. allocated(self % layers)) allocate(self % layers(size(dims)))
     do n = 1, size(dims) - 1
-      self % layers(n) = layer_type(dims(n), dims(n+1))
+      self % layers(n) = layer_constructor(dims(n), dims(n+1))
     end do
-    self % layers(n) = layer_type(dims(n), 1)
+    self % layers(n) = layer_constructor(dims(n), 1)
     self % layers(1) % b = 0
     self % layers(size(dims)) % w = 0
   end subroutine init
@@ -186,7 +187,7 @@ end subroutine backprop_maximize
     call self % init(dims)
     do n = 1, num_layers
       read(fileunit, *) layer_idx, buffer
-      call self % layers(layer_idx) % set_activation(trim(buffer))
+      call layer_set_activation(self % layers(layer_idx), trim(buffer))
     end do
     do n = 2, size(self % dims)
       read(fileunit, *) self % layers(n) % b
@@ -214,9 +215,9 @@ end subroutine backprop_maximize
     real, allocatable :: a(:)
     integer :: n
     associate(layers => self % layers)
-      a = self % layers(2) % activation(matmul(transpose(layers(1) % w), x) + layers(2) % b)
+      a = layer_activation(self % layers(2), matmul(transpose(layers(1) % w), x) + layers(2) % b)
       do n = 3, size(layers)
-        a = self % layers(n) % activation(matmul(transpose(layers(n-1) % w), a) + layers(n) % b)
+        a = layer_activation(self % layers(n), matmul(transpose(layers(n-1) % w), a) + layers(n) % b)
       end do
     end associate
   end function output_single
@@ -264,7 +265,9 @@ end subroutine backprop_maximize
     ! for all layers at once. 
     class(network_type), intent(in out) :: self
     character(len=*), intent(in) :: activation
-    call self % layers(:) % set_activation(activation)
+    do n = 1, size(self % layers)
+      call layer_set_activation(self % layers(n), activation)
+    end do
   end subroutine set_activation_equal
 
 
@@ -274,7 +277,9 @@ end subroutine backprop_maximize
     ! for each layer separately. 
     class(network_type), intent(in out) :: self
     character(len=*), intent(in) :: activation(size(self % layers))
-    call self % layers(:) % set_activation(activation)
+    do n = 1, size(self % layers)
+      call layer_set_activation(self % layers(n), activation)
+    end do
   end subroutine set_activation_layers
 
   subroutine sync(self, image)
