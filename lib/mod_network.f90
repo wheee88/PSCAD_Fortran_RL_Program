@@ -44,9 +44,10 @@ contains
     do n = 1, size(dims) - 1
       net % layers(n) = layer_constructor(dims(n), dims(n+1))
     end do
-    net % layers(n) = layer_constructor(dims(n), 1)
-    net % layers(1) % b = 0
-    net % layers(size(dims)) % w = 0
+    ! Fix: Use explicit index for last layer
+    net % layers(size(dims)) = layer_constructor(dims(size(dims)), 1)
+    net % layers(1) % b = 0.0
+    net % layers(size(dims)) % w = 0.0
   end subroutine network_init
 
   subroutine network_set_activation(net, activation)
