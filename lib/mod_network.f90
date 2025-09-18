@@ -178,7 +178,8 @@ end subroutine backprop_maximize
     integer :: fileunit, n, num_layers, layer_idx
     integer, allocatable :: dims(:)
     character(len=100) :: buffer ! activation string
-    open(newunit=fileunit, file=filename, status='old', action='read')
+    fileunit = 10
+    open(unit=fileunit, file=filename, status='old', action='read')
     read(fileunit, *) num_layers
     allocate(dims(num_layers))
     read(fileunit, *) dims
@@ -240,7 +241,8 @@ end subroutine backprop_maximize
     class(network_type), intent(in out) :: self
     character(len=*), intent(in) :: filename
     integer :: fileunit, n
-    open(newunit=fileunit, file=filename)
+    fileunit = 11
+    open(unit=fileunit, file=filename)
     write(fileunit, fmt=*) size(self % dims)
     write(fileunit, fmt=*) self % dims
     do n = 1, size(self % dims)
@@ -281,13 +283,16 @@ end subroutine backprop_maximize
     class(network_type), intent(in out) :: self
     integer, intent(in) :: image
     integer :: n
+#ifdef CAF
     if (num_images() == 1) return
     layers: do n = 1, size(self % dims)
-#ifdef CAF
       call co_broadcast(self % layers(n) % b, image)
       call co_broadcast(self % layers(n) % w, image)
-#endif
     end do layers
+#else
+    ! Single image mode - no synchronization needed
+    return
+#endif
   end subroutine sync
 
 
@@ -313,19 +318,21 @@ end subroutine backprop_maximize
     call db_init(db_batch, self % dims)
     call dw_init(dw_batch, self % dims)
 
-    do concurrent(i = is:ie)
+    do i = is, ie
       call self % fwdprop(x(:,i))
       call self % backprop(y(:,i), dw, db)
-      do concurrent(n = 1:nm)
+      do n = 1, nm
         dw_batch(n) % array =  dw_batch(n) % array + dw(n) % array
         db_batch(n) % array =  db_batch(n) % array + db(n) % array
       end do
     end do
 
+#ifdef CAF
     if (num_images() > 1) then
       call dw_co_sum(dw_batch)
       call db_co_sum(db_batch)
     end if
+#endif
     
     call self % update(dw_batch, db_batch, eta / im)
 
@@ -353,19 +360,21 @@ subroutine train_maximize_batch(self, x, eta)
     call db_init(db_batch, self % dims)
     call dw_init(dw_batch, self % dims)
 
-    do concurrent(i = is:ie)
+    do i = is, ie
       call self % fwdprop(x(:,i))
       call self % backprop_maximize(dw, db)
-      do concurrent(n = 1:nm)
+      do n = 1, nm
         dw_batch(n) % array =  dw_batch(n) % array + dw(n) % array
         db_batch(n) % array =  db_batch(n) % array + db(n) % array
       end do
     end do
 
+#ifdef CAF
     if (num_images() > 1) then
       call dw_co_sum(dw_batch)
       call db_co_sum(db_batch)
     end if
+#endif
     
     call self % update(dw_batch, db_batch, eta / im)
 
@@ -426,11 +435,11 @@ subroutine train_maximize_batch(self, x, eta)
     
     associate(layers => self % layers, nm => size(self % dims))
       ! update biases
-      do concurrent(n = 2:nm)
+      do n = 2, nm
         layers(n) % b = layers(n) % b - eta * db(n) % array
       end do
       ! update weights
-      do concurrent(n = 1:nm-1)
+      do n = 1, nm-1
         layers(n) % w = layers(n) % w - eta * dw(n) % array
       end do
     end associate

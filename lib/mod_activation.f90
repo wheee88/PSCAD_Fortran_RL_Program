@@ -74,7 +74,7 @@ contains
     real, intent(in) :: x(:)
     real :: res(size(x))
     res = 1 / (1 + exp(-x))
-  endfunction sigmoid
+  end function sigmoid
 
   pure function sigmoid_prime(x) result(res)
     ! First derivative of the sigmoid activation function.

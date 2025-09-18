@@ -30,7 +30,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     std_dev = 0.2
     ou_noise = noise_type(mean, std_dev)
      
-    actor_model = network_type([num_states, 256, 200, num_actions], activation='relu') !!!ÕâÀïÓÐ¸öÐ¡bug£¬ÏàÁÚÁ½²ãµÄlayerµÄneuronÖ®»ý²»ÄÜÌ«´ó
+    actor_model = network_type([num_states, 256, 200, num_actions], activation='relu') !!!ï¿½ï¿½ï¿½ï¿½ï¿½Ð¸ï¿½Ð¡bugï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½layerï¿½ï¿½neuronÖ®ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì«ï¿½ï¿½
     call actor_model%layers(4)%set_activation('tanh')
     critic_model_1 = network_type([num_states, 16, 32], activation='relu')
     critic_model_2 = network_type([num_actions, 32], activation='relu')
@@ -83,7 +83,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     !! Start Training
     if (Train) then 
         if (Simu_Step_In == 0) then
-            INQUIRE (file='D:\PSCAD_RL_Test\Fortran_DDPG\PSCAD_DDPG.if15\PSCAD_actor.txt', exist=alive)
+            INQUIRE (file='PSCAD_actor.txt', exist=alive)
             if (alive) then
                 !/// Not the fist eisode: Load the weights
                 call actor_model%load("PSCAD_actor.txt")
@@ -106,60 +106,60 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
                 call target_critic%save("PSCAD_target_critic.txt")
             
                 ! Save the experience buffer
-                Open(NewUnit=FID, File="buffer_counter_store",action='readwrite',form='unformatted',access='stream')
+                Open(Unit=FID, File="buffer_counter_store",action='readwrite',form='unformatted',access='stream')
                 Write(FID) buffer%buffer_counter
                 Close(FID)
-                Open(NewUnit=FID, File="state_buffer_store",action='readwrite',form='unformatted',access='stream')
+                Open(Unit=FID, File="state_buffer_store",action='readwrite',form='unformatted',access='stream')
                 Write(FID) buffer%state_buffer
                 Close(FID)
-                Open(NewUnit=FID, File="action_buffer_store",action='readwrite',form='unformatted',access='stream')
+                Open(Unit=FID, File="action_buffer_store",action='readwrite',form='unformatted',access='stream')
                 Write(FID) buffer%action_buffer
                 Close(FID)
-                Open(NewUnit=FID, File="reward_buffer_store",action='readwrite',form='unformatted',access='stream')
+                Open(Unit=FID, File="reward_buffer_store",action='readwrite',form='unformatted',access='stream')
                 Write(FID) buffer%reward_buffer
                 Close(FID)
-                Open(NewUnit=FID, File="next_state_buffer_store",action='readwrite',form='unformatted',access='stream')
+                Open(Unit=FID, File="next_state_buffer_store",action='readwrite',form='unformatted',access='stream')
                 Write(FID) buffer%next_state_buffer
                 Close(FID)
             
                 ! Save the episode reward for final plotting
                 episode_counter = 1
-                Open(NewUnit=FID, File="episode_counter",action='readwrite',form='unformatted',access='stream')
+                Open(Unit=FID, File="episode_counter",action='readwrite',form='unformatted',access='stream')
                 Write(FID) episode_counter
                 Close(FID)
                 episodic_reward_store(episode_counter) = 0
-                Open(NewUnit=FID, File="episodic_reward_store",action='readwrite',form='unformatted',access='stream')
+                Open(Unit=FID, File="episodic_reward_store",action='readwrite',form='unformatted',access='stream')
                 Write(FID) episodic_reward_store
                 Close(FID)
 
             end if
             
             !/// First step in each episode: store the 'episodic_reward' and 'prev_state'
-            Open(NewUnit=FID, File="episodic_reward",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="episodic_reward",action='readwrite',form='unformatted',access='stream')
             Write(FID) episodic_reward
             Close(FID)
             
             ! iterate the state to prev_state
             state(1) = state_1
             prev_state = state
-            Open(NewUnit=FID, File="prev_state",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="prev_state",action='readwrite',form='unformatted',access='stream')
             Write(FID) prev_state
             Close(FID)
             
             ! Excute action and save it
             action = policy(state, lower_bound, upper_bound, actor_model, ou_noise)        
-            Open(NewUnit=FID, File="action",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="action",action='readwrite',form='unformatted',access='stream')
             Write(FID) action
             Close(FID)
             action_1 = action(1)
             Simu_Step_Out = Simu_Step_In + 1  
         else 
             ! Load previous state and previous action
-            Open(NewUnit=FID, File="prev_state",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="prev_state",action='readwrite',form='unformatted',access='stream')
             Read(FID) prev_state
             !print *, prev_state
             Close(FID)
-            Open(NewUnit=FID, File="action",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="action",action='readwrite',form='unformatted',access='stream')
             Read(FID) action
             Close(FID)
             
@@ -174,27 +174,27 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             call target_critic%load("PSCAD_target_critic.txt")
             
             ! Load the experience buffer
-            Open(NewUnit=FID, File="buffer_counter_store",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="buffer_counter_store",action='readwrite',form='unformatted',access='stream')
             Read(FID) buffer%buffer_counter
             !print *, buffer%buffer_counter
             Close(FID)
-            Open(NewUnit=FID, File="state_buffer_store",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="state_buffer_store",action='readwrite',form='unformatted',access='stream')
             Read(FID) buffer%state_buffer
 
             Close(FID)
-            Open(NewUnit=FID, File="action_buffer_store",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="action_buffer_store",action='readwrite',form='unformatted',access='stream')
             Read(FID) buffer%action_buffer
             Close(FID)
-            Open(NewUnit=FID, File="reward_buffer_store",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="reward_buffer_store",action='readwrite',form='unformatted',access='stream')
             Read(FID) buffer%reward_buffer
             Close(FID)
-            Open(NewUnit=FID, File="next_state_buffer_store",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="next_state_buffer_store",action='readwrite',form='unformatted',access='stream')
             Read(FID) buffer%next_state_buffer
             Close(FID)
             
             call buffer%nrecord(prev_state, action, reward, state)
             
-            Open(NewUnit=FID, File="episodic_reward",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="episodic_reward",action='readwrite',form='unformatted',access='stream')
             Read(FID) episodic_reward
             episodic_reward = episodic_reward + reward
             Write(FID) episodic_reward
@@ -221,19 +221,19 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             end do
             
             ! Save the experience buffer
-            Open(NewUnit=FID, File="buffer_counter_store",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="buffer_counter_store",action='readwrite',form='unformatted',access='stream')
             Write(FID) buffer%buffer_counter
             Close(FID)
-            Open(NewUnit=FID, File="state_buffer_store",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="state_buffer_store",action='readwrite',form='unformatted',access='stream')
             Write(FID) buffer%state_buffer
             Close(FID)
-            Open(NewUnit=FID, File="action_buffer_store",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="action_buffer_store",action='readwrite',form='unformatted',access='stream')
             Write(FID) buffer%action_buffer
             Close(FID)
-            Open(NewUnit=FID, File="reward_buffer_store",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="reward_buffer_store",action='readwrite',form='unformatted',access='stream')
             Write(FID) buffer%reward_buffer
             Close(FID)
-            Open(NewUnit=FID, File="next_state_buffer_store",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="next_state_buffer_store",action='readwrite',form='unformatted',access='stream')
             Write(FID) buffer%next_state_buffer
             Close(FID)
 
@@ -249,29 +249,29 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             
             ! Excute action and save it
             action = policy(state, lower_bound, upper_bound, actor_model, ou_noise)
-            Open(NewUnit=FID, File="action",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="action",action='readwrite',form='unformatted',access='stream')
             Write(FID) action
             Close(FID)
             
             ! iterate the state to prev_state
             state(1) = state_1
             prev_state = state
-            Open(NewUnit=FID, File="prev_state",action='readwrite',form='unformatted',access='stream')
+            Open(Unit=FID, File="prev_state",action='readwrite',form='unformatted',access='stream')
             Write(FID) prev_state
             Close(FID)
             
             ! Last step of this episode: Save the episode reward to 'episodic_reward_store'
             if (Simu_Step_In == 500) then
-                Open(NewUnit=FID, File="episode_counter",action='readwrite',form='unformatted',access='stream')
+                Open(Unit=FID, File="episode_counter",action='readwrite',form='unformatted',access='stream')
                 Read(FID) episode_counter
                 Close(FID)
-                Open(NewUnit=FID, File="episodic_reward_store",action='readwrite',form='unformatted',access='stream')
+                Open(Unit=FID, File="episodic_reward_store",action='readwrite',form='unformatted',access='stream')
                 Read(FID) episodic_reward_store
                 episodic_reward_store(episode_counter) = episodic_reward
                 Write(FID) episodic_reward_store
                 Close(FID)
                 episode_counter = episode_counter + 1
-                Open(NewUnit=FID, File="episode_counter",action='readwrite',form='unformatted',access='stream')
+                Open(Unit=FID, File="episode_counter",action='readwrite',form='unformatted',access='stream')
                 Write(FID) episode_counter
                 Close(FID)
             end if

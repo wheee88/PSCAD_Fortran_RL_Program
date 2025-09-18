@@ -14,6 +14,7 @@ contains
     integer :: tile_indices(2)
     integer :: offset, tile_size
 
+#ifdef CAF
     tile_size = dims / num_images()
 
     ! start and end indices assuming equal tile sizes
@@ -26,6 +27,11 @@ contains
       tile_indices(1) = tile_indices(1) + this_image() - offset - 1
       tile_indices(2) = tile_indices(2) + this_image() - offset
     end if
+#else
+    ! Single image mode - return full range
+    tile_indices(1) = 1
+    tile_indices(2) = dims
+#endif
 
   end function tile_indices
 
