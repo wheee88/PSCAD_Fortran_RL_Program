@@ -13,7 +13,8 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     real :: reward, Done, episodic_reward
     real :: episodic_reward_store(100)
     real :: critic_lr, actor_lr, gamma, tau
-    type(network_type) :: actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic
+    type(network_type) :: actor_model, critic_model_1, critic_model_2, critic_model
+    type(network_type) :: target_actor, target_critic_1, target_critic_2, target_critic
     type(noise_type) :: ou_noise
     real :: mean, std_dev, lower_bound, upper_bound
     logical :: Train, alive
@@ -46,19 +47,19 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     call layer_set_activation(target_critic%layers(4), 'linear')
     
     ! Making the weights equal initially
-    do i = 1, size(actor_model%layers)
+    do i = 1, 4  ! actor_model has 4 layers
         target_actor%layers(i)%b = actor_model%layers(i)%b
         target_actor%layers(i)%w = actor_model%layers(i)%w
     end do
-    do i = 1, size(critic_model_1%layers)
+    do i = 1, 3  ! critic_model_1 has 3 layers
         target_critic_1%layers(i)%b = critic_model_1%layers(i)%b
         target_critic_1%layers(i)%w = critic_model_1%layers(i)%w
     end do
-    do i = 1, size(critic_model_2%layers)
+    do i = 1, 2  ! critic_model_2 has 2 layers
         target_critic_2%layers(i)%b = critic_model_2%layers(i)%b
         target_critic_2%layers(i)%w = critic_model_2%layers(i)%w
     end do   
-    do i = 1, size(critic_model%layers)
+    do i = 1, 4  ! critic_model has 4 layers
         target_critic%layers(i)%b = critic_model%layers(i)%b
         target_critic%layers(i)%w = critic_model%layers(i)%w
     end do
@@ -201,22 +202,24 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             Write(FID) episodic_reward
             Close(FID)
             
-            call buffer_learn(buffer, actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
+            call buffer_learn(buffer, actor_model, critic_model_1, critic_model_2, critic_model, &
+                             target_actor, target_critic_1, target_critic_2, target_critic, &
+                             critic_lr, actor_lr, gamma)
             
             ! Update_target network
-            do i = 1, size(actor_model%layers)
+            do i = 1, 4  ! actor_model has 4 layers
                 target_actor%layers(i)%b = actor_model%layers(i)%b * tau + target_actor%layers(i)%b * (1-tau)
                 target_actor%layers(i)%w = actor_model%layers(i)%w * tau + target_actor%layers(i)%w * (1-tau)
             end do
-            do i = 1, size(critic_model_1%layers)        
+            do i = 1, 3  ! critic_model_1 has 3 layers
                 target_critic_1%layers(i)%b = critic_model_1%layers(i)%b * tau + target_critic_1%layers(i)%b * (1-tau)
                 target_critic_1%layers(i)%w = critic_model_1%layers(i)%w * tau + target_critic_1%layers(i)%w * (1-tau)
             end do
-            do i = 1, size(critic_model_2%layers)        
+            do i = 1, 2  ! critic_model_2 has 2 layers
                 target_critic_2%layers(i)%b = critic_model_2%layers(i)%b * tau + target_critic_2%layers(i)%b * (1-tau)
                 target_critic_2%layers(i)%w = critic_model_2%layers(i)%w * tau + target_critic_2%layers(i)%w * (1-tau)
             end do
-            do i = 1, size(critic_model%layers)        
+            do i = 1, 4  ! critic_model has 4 layers
                 target_critic%layers(i)%b = critic_model%layers(i)%b * tau + target_critic%layers(i)%b * (1-tau)
                 target_critic%layers(i)%w = critic_model%layers(i)%w * tau + target_critic%layers(i)%w * (1-tau)
             end do
