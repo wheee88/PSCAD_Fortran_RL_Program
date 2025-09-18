@@ -18,9 +18,18 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     real :: z1(2), z2(1), output(1)
     real :: hidden1, hidden2
     
+    ! OU noise parameters
+    real :: ou_noise, ou_theta, ou_sigma, ou_dt
+    real :: ou_mu, ou_state
+    save :: ou_state
+    
     ! DDPG parameters
     lower_bound = -5.0
     upper_bound = 5.0
+    ou_theta = 0.15
+    ou_sigma = 0.2
+    ou_dt = 0.01
+    ou_mu = 0.0
     
     ! Initialize arrays
     state = 0.0
@@ -46,6 +55,9 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         ! Set activation functions
         call layer_set_activation(actor_layer1, 'relu')
         call layer_set_activation(actor_layer2, 'tanh')
+        
+        ! Initialize OU noise state
+        ou_state = 0.0
         
         action(1) = 0.0
     else
@@ -78,9 +90,13 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             action(1) = state(1) * 0.1
         end if
         
-        ! Add exploration noise
+        ! OU noise process
         noise = randn(1)
-        action(1) = action(1) + noise(1) * 0.1
+        ou_noise = ou_theta * (ou_mu - ou_state) * ou_dt + ou_sigma * sqrt(ou_dt) * noise(1)
+        ou_state = ou_state + ou_noise
+        
+        ! Add OU noise to action
+        action(1) = action(1) + ou_state * 0.1
     end if
     
     ! Ensure action is within bounds
