@@ -307,7 +307,9 @@ contains
     ! Define policy function for taking action
     function policy(state, lower_bound, upper_bound, actor_model, ou_noise) result(legal_action)
         implicit none
-        real, intent(in) :: state(:)n) :: actor_model
+        real, intent(in) :: state(:)
+        real, intent(in) :: lower_bound, upper_bound
+        type(network_type), intent(in) :: actor_model
         type(noise_type) :: ou_noise
         real, allocatable :: sampled_action(:), legal_action(:)
         real :: noise
