@@ -208,20 +208,28 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             
             ! Update_target network
             do i = 1, 4  ! actor_model has 4 layers
-                target_actor%layers(i)%b = actor_model%layers(i)%b * tau + target_actor%layers(i)%b * (1-tau)
-                target_actor%layers(i)%w = actor_model%layers(i)%w * tau + target_actor%layers(i)%w * (1-tau)
+                target_actor%layers(i)%b = actor_model%layers(i)%b * tau + &
+                                          target_actor%layers(i)%b * (1-tau)
+                target_actor%layers(i)%w = actor_model%layers(i)%w * tau + &
+                                          target_actor%layers(i)%w * (1-tau)
             end do
             do i = 1, 3  ! critic_model_1 has 3 layers
-                target_critic_1%layers(i)%b = critic_model_1%layers(i)%b * tau + target_critic_1%layers(i)%b * (1-tau)
-                target_critic_1%layers(i)%w = critic_model_1%layers(i)%w * tau + target_critic_1%layers(i)%w * (1-tau)
+                target_critic_1%layers(i)%b = critic_model_1%layers(i)%b * tau + &
+                                             target_critic_1%layers(i)%b * (1-tau)
+                target_critic_1%layers(i)%w = critic_model_1%layers(i)%w * tau + &
+                                             target_critic_1%layers(i)%w * (1-tau)
             end do
             do i = 1, 2  ! critic_model_2 has 2 layers
-                target_critic_2%layers(i)%b = critic_model_2%layers(i)%b * tau + target_critic_2%layers(i)%b * (1-tau)
-                target_critic_2%layers(i)%w = critic_model_2%layers(i)%w * tau + target_critic_2%layers(i)%w * (1-tau)
+                target_critic_2%layers(i)%b = critic_model_2%layers(i)%b * tau + &
+                                             target_critic_2%layers(i)%b * (1-tau)
+                target_critic_2%layers(i)%w = critic_model_2%layers(i)%w * tau + &
+                                             target_critic_2%layers(i)%w * (1-tau)
             end do
             do i = 1, 4  ! critic_model has 4 layers
-                target_critic%layers(i)%b = critic_model%layers(i)%b * tau + target_critic%layers(i)%b * (1-tau)
-                target_critic%layers(i)%w = critic_model%layers(i)%w * tau + target_critic%layers(i)%w * (1-tau)
+                target_critic%layers(i)%b = critic_model%layers(i)%b * tau + &
+                                           target_critic%layers(i)%b * (1-tau)
+                target_critic%layers(i)%w = critic_model%layers(i)%w * tau + &
+                                           target_critic%layers(i)%w * (1-tau)
             end do
             
             ! Save the experience buffer
