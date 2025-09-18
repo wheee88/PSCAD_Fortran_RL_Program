@@ -28,19 +28,22 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Initialize random seed
     call random_seed()
     
-    ! Create simple actor network
+    ! Test 1: Try to create network without activation setting
     actor_model = network_constructor([1, 4, 1], activation='relu')
-    call layer_set_activation(actor_model%layers(3), 'tanh')
+    
+    ! Test 2: Skip layer_set_activation for now
+    ! call layer_set_activation(actor_model%layers(3), 'tanh')
     
     ! Set state
     state(1) = state_1
     
-    ! Get action from network
-    allocate(sampled_action(1))
-    sampled_action = network_output_single(actor_model, state)
+    ! Test 3: Try simple action without network output
+    ! allocate(sampled_action(1))
+    ! sampled_action = network_output_single(actor_model, state)
+    ! action(1) = sampled_action(1) * upper_bound
     
-    ! Scale action to bounds
-    action(1) = sampled_action(1) * upper_bound
+    ! Use simple action for now
+    action(1) = state(1) * 0.1
     
     ! Ensure action is within bounds
     if (action(1) < lower_bound) then
@@ -48,9 +51,6 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     elseif (action(1) > upper_bound) then
         action(1) = upper_bound
     end if
-    
-    ! Clean up
-    deallocate(sampled_action)
     
     ! Set outputs
     action_1 = action(1)
