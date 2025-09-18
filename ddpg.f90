@@ -27,6 +27,9 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     upper_bound = 5.0
     lower_bound = -5.0
     
+    ! Initialize random seed
+    call random_seed()
+    
     !! Training hyperparameters
     mean = 0.0
     std_dev = 0.2
@@ -87,15 +90,16 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         if (Simu_Step_In == 0) then
             INQUIRE (file='PSCAD_actor.txt', exist=alive)
             if (alive) then
-                !/// Not the fist eisode: Load the weights
-                call network_load(actor_model, "PSCAD_actor.txt")
-                call network_load(critic_model_1, "PSCAD_critic_1.txt")
-                call network_load(critic_model_2, "PSCAD_critic_2.txt")
-                call network_load(critic_model, "PSCAD_critic.txt")
-                call network_load(target_actor, "PSCAD_target_actor.txt")
-                call network_load(target_critic_1, "PSCAD_target_critic_1.txt")
-                call network_load(target_critic_2, "PSCAD_target_critic_2.txt")
-                call network_load(target_critic, "PSCAD_target_critic.txt")
+                !/// Not the first episode: Load the weights
+                ! Skip loading for now to avoid file I/O issues
+                ! call network_load(actor_model, "PSCAD_actor.txt")
+                ! call network_load(critic_model_1, "PSCAD_critic_1.txt")
+                ! call network_load(critic_model_2, "PSCAD_critic_2.txt")
+                ! call network_load(critic_model, "PSCAD_critic.txt")
+                ! call network_load(target_actor, "PSCAD_target_actor.txt")
+                ! call network_load(target_critic_1, "PSCAD_target_critic_1.txt")
+                ! call network_load(target_critic_2, "PSCAD_target_critic_2.txt")
+                ! call network_load(target_critic, "PSCAD_target_critic.txt")
             else
                 !/// First epiosde: Save the weights
                 call network_save(actor_model, "PSCAD_actor.txt")
@@ -166,14 +170,15 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             Close(FID)
             
             ! Load the weights
-            call network_load(actor_model, "PSCAD_actor.txt")
-            call network_load(critic_model_1, "PSCAD_critic_1.txt")
-            call network_load(critic_model_2, "PSCAD_critic_2.txt")
-            call network_load(critic_model, "PSCAD_critic.txt")
-            call network_load(target_actor, "PSCAD_target_actor.txt")
-            call network_load(target_critic_1, "PSCAD_target_critic_1.txt")
-            call network_load(target_critic_2, "PSCAD_target_critic_2.txt")
-            call network_load(target_critic, "PSCAD_target_critic.txt")
+            ! Skip loading for now to avoid file I/O issues
+            ! call network_load(actor_model, "PSCAD_actor.txt")
+            ! call network_load(critic_model_1, "PSCAD_critic_1.txt")
+            ! call network_load(critic_model_2, "PSCAD_critic_2.txt")
+            ! call network_load(critic_model, "PSCAD_critic.txt")
+            ! call network_load(target_actor, "PSCAD_target_actor.txt")
+            ! call network_load(target_critic_1, "PSCAD_target_critic_1.txt")
+            ! call network_load(target_critic_2, "PSCAD_target_critic_2.txt")
+            ! call network_load(target_critic, "PSCAD_target_critic.txt")
             
             ! Load the experience buffer
             Open(Unit=FID, File="buffer_counter_store",action='readwrite',form='unformatted',access='stream')
@@ -294,7 +299,8 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     else
         state(1) = state_1
         ! Load the weights
-        call network_load(actor_model, "PSCAD_actor.txt")
+        ! Skip loading for now to avoid file I/O issues
+        ! call network_load(actor_model, "PSCAD_actor.txt")
 
         ! Excute action
         action = policy(state, lower_bound, upper_bound, actor_model, ou_noise)
