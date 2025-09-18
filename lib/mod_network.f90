@@ -25,13 +25,30 @@ contains
     ! corresponds the size of each layer.
     integer, intent(in) :: dims(:)
     character(len=*), intent(in), optional :: activation
-    call network_init(net, dims)
-    if (present(activation)) then
-      call network_set_activation(net, activation)
-    else
-      call network_set_activation(net, 'sigmoid')
-    end if
-    ! call network_sync(net, 1)  ! Commented out to avoid CAF issues
+    integer :: n
+    
+    ! Simple initialization without complex functions
+    net % dims = dims
+    allocate(net % layers(size(dims)))
+    
+    ! Create layers manually
+    do n = 1, size(dims) - 1
+      net % layers(n) = layer_constructor(dims(n), dims(n+1))
+    end do
+    net % layers(size(dims)) = layer_constructor(dims(size(dims)), 1)
+    
+    ! Set activation manually
+    do n = 1, size(dims)
+      if (present(activation)) then
+        call layer_set_activation(net % layers(n), activation)
+      else
+        call layer_set_activation(net % layers(n), 'sigmoid')
+      end if
+    end do
+    
+    ! Initialize biases and weights
+    net % layers(1) % b = 0.0
+    net % layers(size(dims)) % w = 0.0
   end function network_constructor
 
   subroutine network_init(net, dims)
