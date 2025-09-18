@@ -1,5 +1,5 @@
 subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
-    use mod_network, only: network_type, network_constructor
+    use mod_random, only: randn
     implicit none
     
     ! Input/Output parameters
@@ -9,10 +9,9 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     integer, intent(out) :: Simu_Step_Out
     
     ! Local variables
-    type(network_type) :: actor_model
     real :: state(1), action(1)
     real :: lower_bound, upper_bound
-    real :: noise
+    real :: noise(1)
     
     ! Initialize bounds
     lower_bound = -5.0
@@ -28,20 +27,13 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Test: Just create network (no file I/O, no output)
-    if (Simu_Step_In == 0) then
-        ! Create a very simple network
-        actor_model = network_constructor([1, 2, 1], activation='linear')
-    end if
-    
-    ! Simple action without using network
+    ! Test: Use mod_random module
     if (Simu_Step_In == 0) then
         action(1) = 0.0
     else
-        ! Simple proportional control with small noise
-        call random_number(noise)
-        noise = (noise - 0.5) * 0.1  ! Small noise between -0.05 and 0.05
-        action(1) = state(1) * 0.1 + noise
+        ! Use randn from mod_random
+        noise = randn(1)
+        action(1) = state(1) * 0.1 + noise(1) * 0.1
     end if
     
     ! Ensure action is within bounds
