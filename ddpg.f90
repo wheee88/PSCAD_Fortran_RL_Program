@@ -24,11 +24,11 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     num_states =  1
     num_actions = 1
 
-    upper_bound = 5
-    lower_bound = -5
+    upper_bound = 5.0
+    lower_bound = -5.0
     
     !! Training hyperparameters
-    mean = 0
+    mean = 0.0
     std_dev = 0.2
     call noise_init(ou_noise, mean, std_dev, 0.15, 0.01, 0.0)
      
@@ -78,7 +78,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     batch_size = 64
     buffer = buffer_constructor(buffer_capacity, batch_size, num_states, num_actions)
     
-    episodic_reward = 0
+    episodic_reward = 0.0
     ! Train or not Train
     Train = .true.
     
@@ -129,7 +129,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
                 Open(Unit=FID, File="episode_counter",action='readwrite',form='unformatted',access='stream')
                 Write(FID) episode_counter
                 Close(FID)
-                episodic_reward_store(episode_counter) = 0
+                episodic_reward_store(episode_counter) = 0.0
                 Open(Unit=FID, File="episodic_reward_store",action='readwrite',form='unformatted',access='stream')
                 Write(FID) episodic_reward_store
                 Close(FID)
@@ -209,27 +209,27 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             ! Update_target network
             do i = 1, 4  ! actor_model has 4 layers
                 target_actor%layers(i)%b = actor_model%layers(i)%b * tau + &
-                                          target_actor%layers(i)%b * (1-tau)
+                                          target_actor%layers(i)%b * (1.0-tau)
                 target_actor%layers(i)%w = actor_model%layers(i)%w * tau + &
-                                          target_actor%layers(i)%w * (1-tau)
+                                          target_actor%layers(i)%w * (1.0-tau)
             end do
             do i = 1, 3  ! critic_model_1 has 3 layers
                 target_critic_1%layers(i)%b = critic_model_1%layers(i)%b * tau + &
-                                             target_critic_1%layers(i)%b * (1-tau)
+                                             target_critic_1%layers(i)%b * (1.0-tau)
                 target_critic_1%layers(i)%w = critic_model_1%layers(i)%w * tau + &
-                                             target_critic_1%layers(i)%w * (1-tau)
+                                             target_critic_1%layers(i)%w * (1.0-tau)
             end do
             do i = 1, 2  ! critic_model_2 has 2 layers
                 target_critic_2%layers(i)%b = critic_model_2%layers(i)%b * tau + &
-                                             target_critic_2%layers(i)%b * (1-tau)
+                                             target_critic_2%layers(i)%b * (1.0-tau)
                 target_critic_2%layers(i)%w = critic_model_2%layers(i)%w * tau + &
-                                             target_critic_2%layers(i)%w * (1-tau)
+                                             target_critic_2%layers(i)%w * (1.0-tau)
             end do
             do i = 1, 4  ! critic_model has 4 layers
                 target_critic%layers(i)%b = critic_model%layers(i)%b * tau + &
-                                           target_critic%layers(i)%b * (1-tau)
+                                           target_critic%layers(i)%b * (1.0-tau)
                 target_critic%layers(i)%w = critic_model%layers(i)%w * tau + &
-                                           target_critic%layers(i)%w * (1-tau)
+                                           target_critic%layers(i)%w * (1.0-tau)
             end do
             
             ! Save the experience buffer
@@ -307,9 +307,7 @@ contains
     ! Define policy function for taking action
     function policy(state, lower_bound, upper_bound, actor_model, ou_noise) result(legal_action)
         implicit none
-        real, intent(in) :: state(:)
-        real, intent(in) :: lower_bound, upper_bound
-        type(network_type), intent(in) :: actor_model
+        real, intent(in) :: state(:)n) :: actor_model
         type(noise_type) :: ou_noise
         real, allocatable :: sampled_action(:), legal_action(:)
         real :: noise
