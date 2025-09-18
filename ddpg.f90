@@ -1,7 +1,4 @@
 subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
-    use mod_network, only: network_type, network_constructor, network_output_single
-    use mod_layer, only: layer_set_activation
-    
     implicit none
     
     ! Input/Output parameters
@@ -13,9 +10,8 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Local variables
     real :: state(1), action(1)
     real :: lower_bound, upper_bound
-    type(network_type) :: actor_model
-    real, allocatable :: sampled_action(:)
-    integer :: i
+    real :: noise
+    integer :: FID
     
     ! Initialize bounds
     lower_bound = -5.0
@@ -28,28 +24,31 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Initialize random seed
     call random_seed()
     
-    ! Test 1: Try to create network without activation setting
-    actor_model = network_constructor([1, 4, 1], activation='relu')
-    
-    ! Test 2: Skip layer_set_activation for now
-    ! call layer_set_activation(actor_model%layers(3), 'tanh')
-    
     ! Set state
     state(1) = state_1
     
-    ! Test 3: Try simple action without network output
-    ! allocate(sampled_action(1))
-    ! sampled_action = network_output_single(actor_model, state)
-    ! action(1) = sampled_action(1) * upper_bound
-    
-    ! Use simple action for now
-    action(1) = state(1) * 0.1
+    ! Simple action with noise
+    if (Simu_Step_In == 0) then
+        action(1) = 0.0
+    else
+        ! Simple proportional control with small noise
+        call random_number(noise)
+        noise = (noise - 0.5) * 0.1  ! Small noise between -0.05 and 0.05
+        action(1) = state(1) * 0.1 + noise
+    end if
     
     ! Ensure action is within bounds
     if (action(1) < lower_bound) then
         action(1) = lower_bound
     elseif (action(1) > upper_bound) then
         action(1) = upper_bound
+    end if
+    
+    ! Test file I/O (simple version)
+    if (Simu_Step_In == 0) then
+        Open(Unit=FID, File="test_output.txt", action='write')
+        Write(FID, *) "DDPG started"
+        Close(FID)
     end if
     
     ! Set outputs
