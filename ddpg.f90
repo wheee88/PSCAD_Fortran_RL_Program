@@ -30,23 +30,29 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Initialize random seed
     call random_seed()
     
+    ! Initialize state and action arrays
+    state = 0.0
+    action = 0.0
+    prev_state = 0.0
+    
     !! Training hyperparameters
     mean = 0.0
     std_dev = 0.2
     call noise_init(ou_noise, mean, std_dev, 0.15, 0.01, 0.0)
      
-    actor_model = network_constructor([num_states, 256, 200, num_actions], activation='relu')
+    ! Create networks with smaller sizes to avoid memory issues
+    actor_model = network_constructor([num_states, 16, 8, num_actions], activation='relu')
     call layer_set_activation(actor_model%layers(4), 'tanh')
-    critic_model_1 = network_constructor([num_states, 16, 32], activation='relu')
-    critic_model_2 = network_constructor([num_actions, 32], activation='relu')
-    critic_model = network_constructor([64,256,200,1], activation='relu')
+    critic_model_1 = network_constructor([num_states, 8, 16], activation='relu')
+    critic_model_2 = network_constructor([num_actions, 16], activation='relu')
+    critic_model = network_constructor([32,16,8,1], activation='relu')
     call layer_set_activation(critic_model%layers(4), 'linear')
     
-    target_actor = network_constructor([num_states, 256, 200, num_actions], activation='relu')
+    target_actor = network_constructor([num_states, 16, 8, num_actions], activation='relu')
     call layer_set_activation(target_actor%layers(4), 'tanh')
-    target_critic_1 = network_constructor([num_states, 16, 32], activation='relu')
-    target_critic_2 = network_constructor([num_actions, 32], activation='relu')
-    target_critic = network_constructor([64,256,200,1], activation='relu')
+    target_critic_1 = network_constructor([num_states, 8, 16], activation='relu')
+    target_critic_2 = network_constructor([num_actions, 16], activation='relu')
+    target_critic = network_constructor([32,16,8,1], activation='relu')
     call layer_set_activation(target_critic%layers(4), 'linear')
     
     ! Making the weights equal initially
@@ -76,9 +82,9 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Used to update target networks
     tau = 0.0005
 
-    ! Create experience buffer
-    buffer_capacity = 50000
-    batch_size = 64
+    ! Create experience buffer with smaller size
+    buffer_capacity = 1000
+    batch_size = 32
     buffer = buffer_constructor(buffer_capacity, batch_size, num_states, num_actions)
     
     episodic_reward = 0.0
@@ -320,11 +326,14 @@ contains
         allocate(sampled_action(1))
         allocate(legal_action(1))
         
+        ! Get action from network
         sampled_action = network_output_single(actor_model, state)
-        sampled_action = sampled_action * upper_bound
+        ! Scale action to bounds
+        sampled_action(1) = sampled_action(1) * upper_bound
+        ! Get noise
         noise = noise_call(ou_noise)
         ! Adding noise to action
-        sampled_action = sampled_action + noise
+        sampled_action(1) = sampled_action(1) + noise
         
         ! We make sure action is within bounds 
         if (sampled_action(1) < lower_bound) then
