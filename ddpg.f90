@@ -15,7 +15,8 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     real :: state(1), action(1)
     real :: lower_bound, upper_bound
     real :: noise(1)
-    real :: z1(2), hidden(2), z2(1), output(1)
+    real :: z1(2), z2(1), output(1)
+    real :: hidden(2)
     
     ! DDPG parameters
     lower_bound = -5.0
