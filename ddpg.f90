@@ -24,9 +24,15 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     save :: ou_state
     
     ! Learning parameters
-    real :: learning_rate, alpha
-    real :: gradient1, gradient2
+    real :: learning_rate, alpha, gamma, tau
+    real :: gradient1, gradient2, td_error
+    real :: target_value, current_value
     save :: prev_state, prev_action
+    
+    ! Episode tracking
+    integer :: episode_step, total_episodes
+    real :: episode_reward, total_reward
+    save :: episode_step, total_episodes, episode_reward, total_reward
     
     ! DDPG parameters
     lower_bound = -5.0
@@ -37,6 +43,8 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ou_mu = 0.0
     learning_rate = 0.001
     alpha = 0.1
+    gamma = 0.99  ! Discount factor
+    tau = 0.005   ! Soft update rate
     
     ! Initialize arrays
     state = 0.0
@@ -53,7 +61,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Initialize networks (only once)
+    ! Initialize networks and variables (only once)
     if (Simu_Step_In == 0) then
         ! Create simple 2-layer actor network
         actor_layer1 = layer_constructor(1, 2)  ! Input to hidden
@@ -63,13 +71,29 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         call layer_set_activation(actor_layer1, 'relu')
         call layer_set_activation(actor_layer2, 'tanh')
         
-        ! Initialize OU noise state and previous values
+        ! Initialize variables
         ou_state = 0.0
         prev_state = 0.0
         prev_action = 0.0
+        episode_step = 0
+        total_episodes = 0
+        episode_reward = 0.0
+        total_reward = 0.0
         
         action(1) = 0.0
     else
+        ! Episode management
+        if (Done > 0.5) then  ! Episode ended
+            total_episodes = total_episodes + 1
+            total_reward = total_reward + episode_reward
+            episode_reward = 0.0
+            episode_step = 0
+            ou_state = 0.0  ! Reset OU noise
+        else
+            episode_step = episode_step + 1
+            episode_reward = episode_reward + reward
+        end if
+        
         ! Simple 2-layer actor network forward pass
         if (allocated(actor_layer1 % w) .and. allocated(actor_layer1 % b)) then
             if (size(actor_layer1 % w, 1) >= 1 .and. size(actor_layer1 % w, 2) >= 2 .and. size(actor_layer1 % b) >= 2) then
@@ -99,20 +123,30 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             action(1) = state(1) * 0.1
         end if
         
-        ! OU noise process
+        ! OU noise process with decay
         noise = randn(1)
         ou_noise = ou_theta * (ou_mu - ou_state) * ou_dt + ou_sigma * sqrt(ou_dt) * noise(1)
         ou_state = ou_state + ou_noise
         
-        ! Add OU noise to action
-        action(1) = action(1) + ou_state * 0.1
+        ! Decay exploration noise over time
+        real :: noise_scale
+        noise_scale = max(0.1, 1.0 - real(total_episodes) * 0.001)
         
-        ! Simple learning: update weights based on reward
+        ! Add OU noise to action
+        action(1) = action(1) + ou_state * noise_scale * 0.1
+        
+        ! Improved learning: TD-error based learning
         if (Simu_Step_In > 1) then
-            ! Simple policy gradient: if reward is positive, increase weights
-            if (reward > 0.0) then
-                gradient1 = learning_rate * reward * prev_state(1)
-                gradient2 = learning_rate * reward * prev_action(1)
+            ! Simple TD-error calculation
+            current_value = reward
+            target_value = reward + gamma * current_value  ! Simplified target
+            
+            td_error = target_value - current_value
+            
+            ! Update weights based on TD-error (not just positive reward)
+            if (abs(td_error) > 0.01) then  ! Only learn if significant error
+                gradient1 = learning_rate * td_error * prev_state(1)
+                gradient2 = learning_rate * td_error * prev_action(1)
                 
                 ! Update first layer weights
                 if (allocated(actor_layer1 % w)) then
