@@ -79,13 +79,26 @@ contains
         real, intent(in) :: state_batch(:,:), action_batch(:,:), next_state_batch(:,:)
         real, intent(in) :: reward_batch(:)
         real, intent(in) :: critic_lr, actor_lr, gamma
-        real :: target_actions(size(action_batch, dim=1),size(action_batch, dim=2)), critic_value(1,size(action_batch, dim=2)), actions(size(action_batch, dim=1),size(action_batch, dim=2))
-        real :: critic_value_1(32,size(action_batch, dim=2)), critic_value_2(32,size(action_batch, dim=2))
-        real :: y1(32,size(reward_batch)), y2(32,size(reward_batch))
-        real :: y12(64,size(reward_batch)), critic_value_12(64,size(action_batch, dim=2))
-        real :: y(1,size(reward_batch))
-        real :: reward_batch_matrix(1,size(reward_batch))
+        real, allocatable :: target_actions(:,:), critic_value(:,:), actions(:,:)
+        real, allocatable :: critic_value_1(:,:), critic_value_2(:,:)
+        real, allocatable :: y1(:,:), y2(:,:)
+        real, allocatable :: y12(:,:), critic_value_12(:,:)
+        real, allocatable :: y(:,:)
+        real, allocatable :: reward_batch_matrix(:,:)
         integer :: i
+        
+        ! Allocate arrays
+        allocate(target_actions(size(action_batch, dim=1), size(action_batch, dim=2)))
+        allocate(critic_value(1, size(action_batch, dim=2)))
+        allocate(actions(size(action_batch, dim=1), size(action_batch, dim=2)))
+        allocate(critic_value_1(32, size(action_batch, dim=2)))
+        allocate(critic_value_2(32, size(action_batch, dim=2)))
+        allocate(y1(32, size(reward_batch)))
+        allocate(y2(32, size(reward_batch)))
+        allocate(y12(64, size(reward_batch)))
+        allocate(critic_value_12(64, size(action_batch, dim=2)))
+        allocate(y(1, size(reward_batch)))
+        allocate(reward_batch_matrix(1, size(reward_batch)))
         
         reward_batch_matrix(1,:) = reward_batch(:)
         
@@ -133,6 +146,10 @@ contains
         ! TODO: Implement batch training
         ! call network_train_single(actor_model, state_batch, y, actor_lr)
         !call actor_model%train_maximize_batch(state_batch, actor_lr)
+        
+        ! Deallocate arrays
+        deallocate(target_actions, critic_value, actions, critic_value_1, critic_value_2, &
+                  y1, y2, y12, critic_value_12, y, reward_batch_matrix)
     end subroutine buffer_update
     
     ! We compute the loss and update parameters
@@ -143,11 +160,19 @@ contains
         type(buffer_type), intent(in out) :: self
         real, intent(in) :: critic_lr, actor_lr, gamma
         type(network_type) :: actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic
-        real :: k(self%batch_size)
-        real :: state_batch(size(self%state_buffer, dim=1), self%batch_size), action_batch(size(self%action_buffer, dim=1), self%batch_size)
-        real :: reward_batch(self%batch_size), next_state_batch(size(self%next_state_buffer, dim=1), self%batch_size)
-        integer :: batch_indices(self%batch_size)
+        real, allocatable :: k(:)
+        real, allocatable :: state_batch(:,:), action_batch(:,:)
+        real, allocatable :: reward_batch(:), next_state_batch(:,:)
+        integer, allocatable :: batch_indices(:)
         integer :: record_range
+        
+        ! Allocate arrays
+        allocate(k(self%batch_size))
+        allocate(state_batch(size(self%state_buffer, dim=1), self%batch_size))
+        allocate(action_batch(size(self%action_buffer, dim=1), self%batch_size))
+        allocate(reward_batch(self%batch_size))
+        allocate(next_state_batch(size(self%next_state_buffer, dim=1), self%batch_size))
+        allocate(batch_indices(self%batch_size))
         
         ! Get sampling range
         record_range = min(self%buffer_counter, self%buffer_capacity)
@@ -164,6 +189,12 @@ contains
         reward_batch = self%reward_buffer(batch_indices)
         next_state_batch = self%next_state_buffer(:,batch_indices)
 
-        call buffer_update(self, state_batch, action_batch, reward_batch, next_state_batch, actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
+        call buffer_update(self, state_batch, action_batch, reward_batch, next_state_batch, &
+                          actor_model, critic_model_1, critic_model_2, critic_model, &
+                          target_actor, target_critic_1, target_critic_2, target_critic, &
+                          critic_lr, actor_lr, gamma)
+        
+        ! Deallocate arrays
+        deallocate(k, state_batch, action_batch, reward_batch, next_state_batch, batch_indices)
     end subroutine buffer_learn
 end module mod_buffer
