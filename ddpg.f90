@@ -1,7 +1,7 @@
 subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     use mod_random, only: randn
     use mod_activation, only: relu, sigmoid, tanhf
-    use mod_layer, only: layer_type, layer_constructor, layer_set_activation
+    use mod_layer, only: layer_type, layer_constructor, layer_set_activation, layer_activation
     implicit none
     
     ! Input/Output parameters
@@ -17,6 +17,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     real :: noise(1)
     real :: temp_value(1)
     real :: hidden(2), output(1)
+    real :: z1(2), z2(1)
     
     ! Initialize bounds
     lower_bound = -5.0
@@ -27,6 +28,8 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     action = 0.0
     hidden = 0.0
     output = 0.0
+    z1 = 0.0
+    z2 = 0.0
     
     ! Initialize random seed
     call random_seed()
@@ -34,7 +37,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Test: Manual network construction (no network_constructor)
+    ! Test: Manual network construction with forward pass
     if (Simu_Step_In == 0) then
         ! Create layers manually
         layer1 = layer_constructor(1, 2)  ! Input to hidden
@@ -48,15 +51,21 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         
         action(1) = 0.0
     else
-        ! Use randn from mod_random
+        ! Manual forward pass
+        ! Layer 1: input -> hidden
+        z1 = matmul(transpose(layer1 % w), state) + layer1 % b
+        hidden = layer_activation(layer1, z1)
+        
+        ! Layer 2: hidden -> output
+        z2 = matmul(transpose(layer2 % w), hidden) + layer2 % b
+        output = layer_activation(layer2, z2)
+        
+        ! Use network output as action
+        action(1) = output(1)
+        
+        ! Add small noise for exploration
         noise = randn(1)
-        
-        ! Test activation functions with array inputs
-        temp_value(1) = state(1) * 0.1 + noise(1) * 0.1
-        temp_value = relu(temp_value)  ! Apply ReLU activation
-        temp_value = sigmoid(temp_value)  ! Apply sigmoid activation
-        
-        action(1) = temp_value(1) * 2.0 - 1.0  ! Scale to [-1, 1]
+        action(1) = action(1) + noise(1) * 0.1
     end if
     
     ! Ensure action is within bounds
