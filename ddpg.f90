@@ -314,8 +314,8 @@ contains
         real, allocatable :: sampled_action(:), legal_action(:)
         real :: noise
         
-        allocate(sampled_action(actor_model%dims(size(actor_model%dims))))
-        allocate(legal_action(actor_model%dims(size(actor_model%dims))))
+        allocate(sampled_action(1))
+        allocate(legal_action(1))
         
         sampled_action = network_output_single(actor_model, state)
         sampled_action = sampled_action * upper_bound
@@ -325,9 +325,9 @@ contains
         
         ! We make sure action is within bounds 
         if (sampled_action(1) < lower_bound) then
-            legal_action = lower_bound
+            legal_action(1) = lower_bound
         elseif (sampled_action(1) > upper_bound) then
-            legal_action = upper_bound
+            legal_action(1) = upper_bound
         else
             legal_action = sampled_action
         end if   
