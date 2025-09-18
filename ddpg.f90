@@ -1,7 +1,7 @@
 subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     use mod_random, only: randn
     use mod_activation, only: relu, sigmoid, tanhf
-    use mod_layer, only: layer_type, layer_constructor, layer_set_activation
+    use mod_layer, only: layer_type, layer_constructor, layer_set_activation, layer_activation
     implicit none
     
     ! Input/Output parameters
@@ -17,6 +17,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     real :: noise(1)
     real :: temp_value(1)
     real :: safe_result
+    real :: z1(2), hidden(2), z2(1), output(1)
     
     ! Initialize bounds
     lower_bound = -5.0
@@ -25,6 +26,10 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Initialize arrays
     state = 0.0
     action = 0.0
+    z1 = 0.0
+    hidden = 0.0
+    z2 = 0.0
+    output = 0.0
     
     ! Initialize random seed
     call random_seed()
@@ -32,7 +37,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Test: Safe layer weight/bias access
+    ! Test: Safe network forward pass
     if (Simu_Step_In == 0) then
         ! Create layers manually
         layer1 = layer_constructor(1, 2)  ! Input to hidden
@@ -46,11 +51,26 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         
         action(1) = 0.0
     else
-        ! Safe access to layer weights and biases
+        ! Safe network forward pass
         if (allocated(layer1 % w) .and. allocated(layer1 % b)) then
-            if (size(layer1 % w, 1) >= 1 .and. size(layer1 % w, 2) >= 1 .and. size(layer1 % b) >= 1) then
-                safe_result = state(1) * layer1 % w(1, 1) + layer1 % b(1)
-                action(1) = safe_result * 0.1
+            if (size(layer1 % w, 1) >= 1 .and. size(layer1 % w, 2) >= 2 .and. size(layer1 % b) >= 2) then
+                ! Layer 1: input -> hidden
+                z1(1) = state(1) * layer1 % w(1, 1) + layer1 % b(1)
+                z1(2) = state(1) * layer1 % w(1, 2) + layer1 % b(2)
+                hidden = layer_activation(layer1, z1)
+                
+                ! Layer 2: hidden -> output
+                if (allocated(layer2 % w) .and. allocated(layer2 % b)) then
+                    if (size(layer2 % w, 1) >= 2 .and. size(layer2 % w, 2) >= 1 .and. size(layer2 % b) >= 1) then
+                        z2(1) = hidden(1) * layer2 % w(1, 1) + hidden(2) * layer2 % w(2, 1) + layer2 % b(1)
+                        output = layer_activation(layer2, z2)
+                        action(1) = output(1)
+                    else
+                        action(1) = hidden(1) * 0.1
+                    end if
+                else
+                    action(1) = hidden(1) * 0.1
+                end if
             else
                 action(1) = state(1) * 0.1
             end if
