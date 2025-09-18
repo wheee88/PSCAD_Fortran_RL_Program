@@ -16,6 +16,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     real :: lower_bound, upper_bound
     real :: noise(1)
     real :: temp_value(1)
+    real :: test_result(2)
     
     ! Initialize bounds
     lower_bound = -5.0
@@ -24,6 +25,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Initialize arrays
     state = 0.0
     action = 0.0
+    test_result = 0.0
     
     ! Initialize random seed
     call random_seed()
@@ -31,7 +33,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Test: Manual network construction without forward pass
+    ! Test: Manual network construction with simple matmul test
     if (Simu_Step_In == 0) then
         ! Create layers manually
         layer1 = layer_constructor(1, 2)  ! Input to hidden
@@ -45,13 +47,15 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         
         action(1) = 0.0
     else
-        ! Simple action without network computation
-        noise = randn(1)
-        temp_value(1) = state(1) * 0.1 + noise(1) * 0.1
-        temp_value = relu(temp_value)  ! Apply ReLU activation
-        temp_value = sigmoid(temp_value)  ! Apply sigmoid activation
+        ! Test simple matmul operation
+        test_result = matmul(transpose(layer1 % w), state) + layer1 % b
         
-        action(1) = temp_value(1) * 2.0 - 1.0  ! Scale to [-1, 1]
+        ! Use test result as action (scaled)
+        action(1) = test_result(1) * 0.1
+        
+        ! Add small noise for exploration
+        noise = randn(1)
+        action(1) = action(1) + noise(1) * 0.1
     end if
     
     ! Ensure action is within bounds
