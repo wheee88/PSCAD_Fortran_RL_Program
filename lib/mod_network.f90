@@ -31,7 +31,7 @@ contains
     else
       call network_set_activation(net, 'sigmoid')
     end if
-    call network_sync(net, 1)
+    ! call network_sync(net, 1)  ! Commented out to avoid CAF issues
   end function network_constructor
 
   subroutine network_init(net, dims)
