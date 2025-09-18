@@ -1,36 +1,27 @@
 module mod_buffer
     use mod_random, only: randn
-    use mod_network, only: network_type
+    use mod_network, only: network_type, network_output_single, network_train, network_train_maximize_batch
     implicit none
     
     private
-    public :: buffer_type
+    public :: buffer_type, buffer_constructor, buffer_init, buffer_nrecord, buffer_update, buffer_learn
     
     type :: buffer_type
         integer :: buffer_capacity, batch_size, buffer_counter
         real, allocatable :: state_buffer(:,:), action_buffer(:,:), reward_buffer(:), next_state_buffer(:,:)
-    contains
-        procedure, public, pass(self) :: init
-        procedure, public, pass(self) :: nrecord 
-        procedure, public, pass(self) :: update
-        procedure, public, pass(self) :: learn
     end type buffer_type
-    
-interface buffer_type
-    module procedure :: buffer_constructor
-end interface buffer_type    
 
 contains
     
     type(buffer_type) function buffer_constructor(buffer_capacity, batch_size, num_states, num_actions) result(buffer)
         implicit none
         integer, intent(in) :: buffer_capacity, batch_size, num_states, num_actions
-        call buffer%init(buffer_capacity, batch_size, num_states, num_actions)
+        call buffer_init(buffer, buffer_capacity, batch_size, num_states, num_actions)
     end function buffer_constructor
     
-    subroutine init(self, buffer_capacity, batch_size, num_states, num_actions)
+    subroutine buffer_init(self, buffer_capacity, batch_size, num_states, num_actions)
         implicit none
-        class(buffer_type), intent(in out) :: self
+        type(buffer_type), intent(in out) :: self
         integer, intent(in) :: buffer_capacity, batch_size, num_states, num_actions
         allocate(self%state_buffer(num_states,0:buffer_capacity-1))
         allocate(self%action_buffer(num_actions,0:buffer_capacity-1))
@@ -53,9 +44,9 @@ contains
     end subroutine init
     
     ! Takes (s,a,r,s') column obervation tuple as input
-    subroutine nrecord(self, prev_state, action, reward, state)
+    subroutine buffer_nrecord(self, prev_state, action, reward, state)
         implicit none
-        class(buffer_type), intent(in out) :: self
+        type(buffer_type), intent(in out) :: self
         integer :: index
         real, intent(in) :: prev_state(:), state(:), action(:)
         real, intent(in) :: reward
@@ -76,11 +67,11 @@ contains
     ! TensorFlow to build a static graph out of the logic and computations in our function.
     ! This provides a large speed up for blocks of code that contain many small TensorFlow operations such as this one.
     !@tf.function
-    subroutine update(self, state_batch, action_batch, reward_batch, next_state_batch, actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
+    subroutine buffer_update(self, state_batch, action_batch, reward_batch, next_state_batch, actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
         ! Training and updating Actor & Critic networks.
         ! See Pseudo Code.
         implicit none
-        class(buffer_type), intent(in out) :: self
+        type(buffer_type), intent(in out) :: self
         type(network_type) :: actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic
         real, intent(in) :: state_batch(:,:), action_batch(:,:), next_state_batch(:,:)
         real, intent(in) :: reward_batch(:)
@@ -95,54 +86,54 @@ contains
         
         reward_batch_matrix(1,:) = reward_batch(:)
         
-        target_actions = target_actor%output(next_state_batch) !!
-        y1 = target_critic_1%output(next_state_batch)
-        y2 = target_critic_2%output(target_actions)
-        !!´Ë´¦ÐèÒªÏëÏëÊý¾Ý½á¹¹,ÈçºÎ°ÑÁ½¸öÊäÈëÆ´½Ó,(FortranÃ²ËÆ²»»áÖÇÄÜ¾ØÕóÆ´½Ó,³¢ÊÔÊÖ¶¯Æ´½Ó)
+        target_actions = network_output_single(target_actor, next_state_batch) !!
+        y1 = network_output_single(target_critic_1, next_state_batch)
+        y2 = network_output_single(target_critic_2, target_actions)
+        !!ï¿½Ë´ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý½á¹¹,ï¿½ï¿½Î°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ´ï¿½ï¿½,(FortranÃ²ï¿½Æ²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü¾ï¿½ï¿½ï¿½Æ´ï¿½ï¿½,ï¿½ï¿½ï¿½ï¿½ï¿½Ö¶ï¿½Æ´ï¿½ï¿½)
         do i = 1, size(reward_batch)
             y12(:,i) = [y1(:,i), y2(:,i)]
         end do
         !print *, shape(y12)
-        y = reward_batch_matrix + gamma * target_critic%output(y12)
+        y = reward_batch_matrix + gamma * network_output_single(target_critic, y12)
         !print *, y(1,1)
-        critic_value_1 = critic_model_1%output(state_batch)
-        critic_value_2 = critic_model_2%output(action_batch)
+        critic_value_1 = network_output_single(critic_model_1, state_batch)
+        critic_value_2 = network_output_single(critic_model_2, action_batch)
         do i = 1, size(action_batch, dim=2)
             critic_value_12(:,i) = [critic_value_1(:,i), critic_value_2(:,i)]
         end do
-        critic_value = critic_model%output(critic_value_12)
-        call critic_model_1%train(state_batch, y1, critic_lr)
+        critic_value = network_output_single(critic_model, critic_value_12)
+        call network_train(critic_model_1, state_batch, y1, critic_lr)
         !print *, state_batch(1,1:2)
         !print *, reward_batch(1:2)
-        call critic_model_2%train(action_batch, y2, critic_lr)
-        call critic_model%train(critic_value_12, y, critic_lr)
-        !print *, critic_value_12(1,1) --ÐèÒª¼ì²éÎªÊ²Ã´²»±ä»¯
-        !print *, critic_model%layers(1)%w(1,1) --ÐèÒª¼ì²éÎªÊ²Ã´²»±ä»¯
-        actions = actor_model%output(state_batch)
+        call network_train(critic_model_2, action_batch, y2, critic_lr)
+        call network_train(critic_model, critic_value_12, y, critic_lr)
+        !print *, critic_value_12(1,1) --ï¿½ï¿½Òªï¿½ï¿½ï¿½ÎªÊ²Ã´ï¿½ï¿½ï¿½ä»¯
+        !print *, critic_model%layers(1)%w(1,1) --ï¿½ï¿½Òªï¿½ï¿½ï¿½ÎªÊ²Ã´ï¿½ï¿½ï¿½ä»¯
+        actions = network_output_single(actor_model, state_batch)
         
         !y(1,:) = 10
         
-        critic_value_1 = critic_model_1%output(state_batch)
-        critic_value_2 = critic_model_2%output(actions)
+        critic_value_1 = network_output_single(critic_model_1, state_batch)
+        critic_value_2 = network_output_single(critic_model_2, actions)
         do i = 1, size(action_batch, dim=2)
             critic_value_12(:,i) = [critic_value_1(:,i), critic_value_2(:,i)]
         end do
-        critic_value = critic_model%output(critic_value_12)
+        critic_value = network_output_single(critic_model, critic_value_12)
         ! Used `-value` as we want to maximize the value given
         ! by the critic for our actions
         !call actor_model%train(critic_value, 0, eta)
-        !actor_loss = -(sum(critic_value) / size(critic_value)) !!ÕâÒ»²½¿ÉÄÜÐèÒª×Ô¼ºÖØÐ´·´Ïò´«²¥Ëã·¨
+        !actor_loss = -(sum(critic_value) / size(critic_value)) !!ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½Ô¼ï¿½ï¿½ï¿½Ð´ï¿½ï¿½ï¿½ò´«²ï¿½ï¿½ã·¨
         !print *, actor_model%loss(critic_value(:,1), y(:,1))
         !print *, -critic_value(:,1)
         
-        call actor_model%train_maximize_batch(state_batch, actor_lr)
+        call network_train_maximize_batch(actor_model, state_batch, actor_lr)
         !call actor_model%train_maximize_batch(state_batch, actor_lr)
-    end subroutine update
+    end subroutine buffer_update
     
     ! We compute the loss and update parameters
-    subroutine learn(self, actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
+    subroutine buffer_learn(self, actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
         implicit none
-        class(buffer_type), intent(in out) :: self
+        type(buffer_type), intent(in out) :: self
         real, intent(in) :: critic_lr, actor_lr, gamma
         type(network_type) :: actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic
         real :: k(self%batch_size)
@@ -166,6 +157,6 @@ contains
         reward_batch = self%reward_buffer(batch_indices)
         next_state_batch = self%next_state_buffer(:,batch_indices)
 
-        call self%update(state_batch, action_batch, reward_batch, next_state_batch, actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
-    end subroutine learn
+        call buffer_update(self, state_batch, action_batch, reward_batch, next_state_batch, actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
+    end subroutine buffer_learn
 end module mod_buffer

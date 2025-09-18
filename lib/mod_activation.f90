@@ -34,7 +34,7 @@ contains
     ! First derivative of the Gaussian activation function.
     real, intent(in) :: x(:)
     real :: res(size(x))
-    res = 1
+    res = 1.0
   end function linear_prime
   
   pure function gaussian(x) result(res)
@@ -48,14 +48,14 @@ contains
     ! First derivative of the Gaussian activation function.
     real, intent(in) :: x(:)
     real :: res(size(x))
-    res = -2 * x * gaussian(x)
+    res = -2.0 * x * gaussian(x)
   end function gaussian_prime
 
   pure function relu(x) result(res)
     !! REctified Linear Unit (RELU) activation function.
     real, intent(in) :: x(:)
     real :: res(size(x))
-    res = max(0., x)
+    res = max(0.0, x)
   end function relu
 
   pure function relu_prime(x) result(res)
@@ -63,9 +63,9 @@ contains
     real, intent(in) :: x(:)
     real :: res(size(x))
     where (x > 0)
-      res = 1
+      res = 1.0
     elsewhere
-      res = 0
+      res = 0.0
     end where
   end function relu_prime
 
@@ -73,14 +73,14 @@ contains
     ! Sigmoid activation function.
     real, intent(in) :: x(:)
     real :: res(size(x))
-    res = 1 / (1 + exp(-x))
+    res = 1.0 / (1.0 + exp(-x))
   end function sigmoid
 
   pure function sigmoid_prime(x) result(res)
     ! First derivative of the sigmoid activation function.
     real, intent(in) :: x(:)
     real :: res(size(x))
-    res = sigmoid(x) * (1 - sigmoid(x))
+    res = sigmoid(x) * (1.0 - sigmoid(x))
   end function sigmoid_prime
 
   pure function step(x) result(res)
@@ -88,9 +88,9 @@ contains
     real, intent(in) :: x(:)
     real :: res(size(x))
     where (x > 0)
-      res = 1
+      res = 1.0
     elsewhere
-      res = 0
+      res = 0.0
     end where
   end function step
 
@@ -98,7 +98,7 @@ contains
     ! First derivative of the step activation function.
     real, intent(in) :: x(:)
     real :: res(size(x))
-    res = 0
+    res = 0.0
   end function step_prime
 
   pure function tanhf(x) result(res)
@@ -115,7 +115,7 @@ contains
     ! First derivative of the tanh activation function.
     real, intent(in) :: x(:)
     real :: res(size(x))
-    res = 1 - tanh(x)**2
+    res = 1.0 - tanh(x)**2
   end function tanh_prime
 
 end module mod_activation

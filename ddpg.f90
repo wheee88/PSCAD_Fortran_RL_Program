@@ -1,7 +1,7 @@
 subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
-    use mod_OUActionNoise, only: noise_type
+    use mod_OUActionNoise, only: noise_type, noise_init, noise_call
     use mod_network, only: network_type, network_constructor, network_load, network_save, network_output_single
-    use mod_buffer, only: buffer_type
+    use mod_buffer, only: buffer_type, buffer_constructor, buffer_nrecord, buffer_learn
     use mod_layer, only: layer_set_activation
     
     implicit none
@@ -29,7 +29,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     !! Training hyperparameters
     mean = 0
     std_dev = 0.2
-    ou_noise = noise_type(mean, std_dev)
+    call noise_init(ou_noise, mean, std_dev, 0.15, 0.01, 0.0)
      
     actor_model = network_constructor([num_states, 256, 200, num_actions], activation='relu') !!!�����и�Сbug�����������layer��neuron֮������̫��
     call layer_set_activation(actor_model%layers(4), 'tanh')
@@ -75,7 +75,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Create experience buffer
     buffer_capacity = 50000
     batch_size = 64
-    buffer = buffer_type(buffer_capacity, batch_size, num_states, num_actions)
+    buffer = buffer_constructor(buffer_capacity, batch_size, num_states, num_actions)
     
     episodic_reward = 0
     ! Train or not Train
@@ -193,7 +193,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             Read(FID) buffer%next_state_buffer
             Close(FID)
             
-            call buffer%nrecord(prev_state, action, reward, state)
+            call buffer_nrecord(buffer, prev_state, action, reward, state)
             
             Open(Unit=FID, File="episodic_reward",action='readwrite',form='unformatted',access='stream')
             Read(FID) episodic_reward
@@ -201,7 +201,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             Write(FID) episodic_reward
             Close(FID)
             
-            call buffer%learn(actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
+            call buffer_learn(buffer, actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
             
             ! Update_target network
             do i = 1, size(actor_model%layers)
@@ -308,7 +308,7 @@ contains
         
         sampled_action = network_output_single(actor_model, state)
         sampled_action = sampled_action * upper_bound
-        noise = ou_noise%ncall()
+        noise = noise_call(ou_noise)
         ! Adding noise to action
         sampled_action = sampled_action + noise
         
