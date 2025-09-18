@@ -75,7 +75,8 @@ contains
         ! See Pseudo Code.
         implicit none
         type(buffer_type), intent(in out) :: self
-        type(network_type) :: actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic
+        type(network_type) :: actor_model, critic_model_1, critic_model_2, critic_model
+        type(network_type) :: target_actor, target_critic_1, target_critic_2, target_critic
         real, intent(in) :: state_batch(:,:), action_batch(:,:), next_state_batch(:,:)
         real, intent(in) :: reward_batch(:)
         real, intent(in) :: critic_lr, actor_lr, gamma
@@ -159,7 +160,8 @@ contains
         implicit none
         type(buffer_type), intent(in out) :: self
         real, intent(in) :: critic_lr, actor_lr, gamma
-        type(network_type) :: actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic
+        type(network_type) :: actor_model, critic_model_1, critic_model_2, critic_model
+        type(network_type) :: target_actor, target_critic_1, target_critic_2, target_critic
         real, allocatable :: k(:)
         real, allocatable :: state_batch(:,:), action_batch(:,:)
         real, allocatable :: reward_batch(:), next_state_batch(:,:)
