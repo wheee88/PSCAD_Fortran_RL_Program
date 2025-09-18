@@ -35,7 +35,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     std_dev = 0.2
     call noise_init(ou_noise, mean, std_dev, 0.15, 0.01, 0.0)
      
-    actor_model = network_constructor([num_states, 256, 200, num_actions], activation='relu') !!!�����и�Сbug�����������layer��neuron֮������̫��
+    actor_model = network_constructor([num_states, 256, 200, num_actions], activation='relu')
     call layer_set_activation(actor_model%layers(4), 'tanh')
     critic_model_1 = network_constructor([num_states, 16, 32], activation='relu')
     critic_model_2 = network_constructor([num_actions, 32], activation='relu')
@@ -101,7 +101,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
                 ! call network_load(target_critic_2, "PSCAD_target_critic_2.txt")
                 ! call network_load(target_critic, "PSCAD_target_critic.txt")
             else
-                !/// First epiosde: Save the weights
+                !/// First episode: Save the weights
                 call network_save(actor_model, "PSCAD_actor.txt")
                 call network_save(critic_model_1, "PSCAD_critic_1.txt")
                 call network_save(critic_model_2, "PSCAD_critic_2.txt")
@@ -152,7 +152,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             Write(FID) prev_state
             Close(FID)
             
-            ! Excute action and save it
+            ! Execute action and save it
             action = policy(state, lower_bound, upper_bound, actor_model, ou_noise)        
             Open(Unit=FID, File="action",action='readwrite',form='unformatted',access='stream')
             Write(FID) action
@@ -163,7 +163,6 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             ! Load previous state and previous action
             Open(Unit=FID, File="prev_state",action='readwrite',form='unformatted',access='stream')
             Read(FID) prev_state
-            !print *, prev_state
             Close(FID)
             Open(Unit=FID, File="action",action='readwrite',form='unformatted',access='stream')
             Read(FID) action
@@ -183,11 +182,9 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             ! Load the experience buffer
             Open(Unit=FID, File="buffer_counter_store",action='readwrite',form='unformatted',access='stream')
             Read(FID) buffer%buffer_counter
-            !print *, buffer%buffer_counter
             Close(FID)
             Open(Unit=FID, File="state_buffer_store",action='readwrite',form='unformatted',access='stream')
             Read(FID) buffer%state_buffer
-
             Close(FID)
             Open(Unit=FID, File="action_buffer_store",action='readwrite',form='unformatted',access='stream')
             Read(FID) buffer%action_buffer
@@ -264,7 +261,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             call network_save(target_critic_2, "PSCAD_target_critic_2.txt")
             call network_save(target_critic, "PSCAD_target_critic.txt")
             
-            ! Excute action and save it
+            ! Execute action and save it
             action = policy(state, lower_bound, upper_bound, actor_model, ou_noise)
             Open(Unit=FID, File="action",action='readwrite',form='unformatted',access='stream')
             Write(FID) action
@@ -302,7 +299,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         ! Skip loading for now to avoid file I/O issues
         ! call network_load(actor_model, "PSCAD_actor.txt")
 
-        ! Excute action
+        ! Execute action
         action = policy(state, lower_bound, upper_bound, actor_model, ou_noise)
         
         action_1 = action(1)
