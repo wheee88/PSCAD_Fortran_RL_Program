@@ -15,11 +15,12 @@ module mod_layer
     real, allocatable :: b(:) ! biases
     real, allocatable :: w(:,:) ! weights
     real, allocatable :: z(:) ! arg. to activation function
-    procedure(activation_function), pointer, nopass :: activation => null()
-    procedure(activation_function), pointer, nopass :: activation_prime => null()
-    character(len=:), allocatable :: activation_str ! activation character string
+    character(len=20) :: activation_str ! activation character string
+    integer :: activation_type ! 1=linear, 2=gaussian, 3=relu, 4=sigmoid, 5=step, 6=tanh
   contains
     procedure, public, pass(self) :: set_activation
+    procedure, public, pass(self) :: activation
+    procedure, public, pass(self) :: activation_prime
   end type layer_type
 
   type :: array1d
@@ -29,18 +30,6 @@ module mod_layer
   type :: array2d
     real, allocatable :: array(:,:)
   end type array2d
-
-  interface layer_type
-    module procedure :: constructor
-  end interface layer_type
-
-  interface array1d
-    module procedure :: array1d_constructor
-  end interface array1d
-
-  interface array2d
-    module procedure :: array2d_constructor
-  end interface array2d
 
 contains
 
@@ -57,6 +46,8 @@ contains
     layer % z = 0
     layer % w = randn(this_size, next_size) / this_size
     layer % b = randn(this_size)
+    layer % activation_str = 'sigmoid'
+    layer % activation_type = 4
   end function constructor
 
   pure type(array1d) function array1d_constructor(length) result(a)
@@ -81,9 +72,9 @@ contains
     nm = size(dims)
     allocate(db(nm))
     do n = 1, nm - 1
-      db(n) = array1d(dims(n))
+      db(n) = array1d_constructor(dims(n))
     end do
-    db(n) = array1d(dims(n))
+    db(n) = array1d_constructor(dims(n))
   end subroutine db_init
 
   pure subroutine dw_init(dw, dims)
@@ -91,12 +82,17 @@ contains
     type(array2d), allocatable, intent(in out) :: dw(:)
     integer, intent(in) :: dims(:)
     integer :: n, nm
+    integer :: dims_temp(2)
     nm = size(dims)
     allocate(dw(nm))
     do n = 1, nm - 1
-      dw(n) = array2d(dims(n:n+1))
+      dims_temp(1) = dims(n)
+      dims_temp(2) = dims(n+1)
+      dw(n) = array2d_constructor(dims_temp)
     end do
-    dw(n) = array2d([dims(n), 1])
+    dims_temp(1) = dims(n)
+    dims_temp(2) = 1
+    dw(n) = array2d_constructor(dims_temp)
   end subroutine dw_init
 
   subroutine db_co_sum(db)
@@ -129,34 +125,73 @@ contains
     character(len=*), intent(in) :: activation
     select case(trim(activation))
       case('linear')
-        self % activation => linear
-        self % activation_prime => linear_prime
+        self % activation_type = 1
         self % activation_str = 'linear'
       case('gaussian')
-        self % activation => gaussian
-        self % activation_prime => gaussian_prime
+        self % activation_type = 2
         self % activation_str = 'gaussian'
       case('relu')
-        self % activation => relu
-        self % activation_prime => relu_prime
+        self % activation_type = 3
         self % activation_str = 'relu'
       case('sigmoid')
-        self % activation => sigmoid
-        self % activation_prime => sigmoid_prime
+        self % activation_type = 4
         self % activation_str = 'sigmoid'
       case('step')
-        self % activation => step
-        self % activation_prime => step_prime
+        self % activation_type = 5
         self % activation_str = 'step'
       case('tanh')
-        self % activation => tanhf
-        self % activation_prime => tanh_prime
+        self % activation_type = 6
         self % activation_str = 'tanh'
       case default
-        self % activation => sigmoid
-        self % activation_prime => sigmoid_prime
+        self % activation_type = 4
         self % activation_str = 'sigmoid'
     end select
   end subroutine set_activation
+
+  pure function activation(self, x) result(res)
+    ! Applies the activation function based on the stored type.
+    class(layer_type), intent(in) :: self
+    real, intent(in) :: x(:)
+    real :: res(size(x))
+    select case(self % activation_type)
+      case(1)
+        res = linear(x)
+      case(2)
+        res = gaussian(x)
+      case(3)
+        res = relu(x)
+      case(4)
+        res = sigmoid(x)
+      case(5)
+        res = step(x)
+      case(6)
+        res = tanhf(x)
+      case default
+        res = sigmoid(x)
+    end select
+  end function activation
+
+  pure function activation_prime(self, x) result(res)
+    ! Applies the activation function derivative based on the stored type.
+    class(layer_type), intent(in) :: self
+    real, intent(in) :: x(:)
+    real :: res(size(x))
+    select case(self % activation_type)
+      case(1)
+        res = linear_prime(x)
+      case(2)
+        res = gaussian_prime(x)
+      case(3)
+        res = relu_prime(x)
+      case(4)
+        res = sigmoid_prime(x)
+      case(5)
+        res = step_prime(x)
+      case(6)
+        res = tanh_prime(x)
+      case default
+        res = sigmoid_prime(x)
+    end select
+  end function activation_prime
 
 end module mod_layer
