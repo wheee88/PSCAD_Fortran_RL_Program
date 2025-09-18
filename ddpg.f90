@@ -27,6 +27,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     real :: learning_rate, alpha, gamma, tau
     real :: gradient1, gradient2, td_error
     real :: target_value, current_value
+    real :: noise_scale
     save :: prev_state, prev_action
     
     ! Episode tracking
