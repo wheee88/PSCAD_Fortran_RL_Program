@@ -11,21 +11,24 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     integer, intent(out) :: Simu_Step_Out
     
     ! Local variables
-    type(layer_type) :: layer1, layer2, layer3
-    real :: state(1), action(1)
+    type(layer_type) :: actor_layer1, actor_layer2, actor_layer3
+    real :: state(1), action(1), prev_state(1)
     real :: lower_bound, upper_bound
     real :: noise(1)
-    real :: temp_value(1)
-    real :: safe_result
     real :: z1(2), hidden(2), z2(1), output(1)
+    real :: learning_rate, tau
+    integer :: episode_step
     
-    ! Initialize bounds
+    ! DDPG parameters
+    learning_rate = 0.001
+    tau = 0.005
     lower_bound = -5.0
     upper_bound = 5.0
     
     ! Initialize arrays
     state = 0.0
     action = 0.0
+    prev_state = 0.0
     z1 = 0.0
     hidden = 0.0
     z2 = 0.0
@@ -37,34 +40,51 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Test: Safe network forward pass
+    ! Initialize networks (only once)
     if (Simu_Step_In == 0) then
-        ! Create layers manually
-        layer1 = layer_constructor(1, 2)  ! Input to hidden
-        layer2 = layer_constructor(2, 1)  ! Hidden to output
-        layer3 = layer_constructor(1, 1)  ! Output layer
+        ! Create actor network
+        actor_layer1 = layer_constructor(1, 4)  ! Input to hidden
+        actor_layer2 = layer_constructor(4, 2)  ! Hidden to hidden
+        actor_layer3 = layer_constructor(2, 1)  ! Hidden to output
         
         ! Set activation functions
-        call layer_set_activation(layer1, 'relu')
-        call layer_set_activation(layer2, 'relu')
-        call layer_set_activation(layer3, 'linear')
+        call layer_set_activation(actor_layer1, 'relu')
+        call layer_set_activation(actor_layer2, 'relu')
+        call layer_set_activation(actor_layer3, 'tanh')
         
         action(1) = 0.0
     else
-        ! Safe network forward pass
-        if (allocated(layer1 % w) .and. allocated(layer1 % b)) then
-            if (size(layer1 % w, 1) >= 1 .and. size(layer1 % w, 2) >= 2 .and. size(layer1 % b) >= 2) then
+        ! Actor network forward pass
+        if (allocated(actor_layer1 % w) .and. allocated(actor_layer1 % b)) then
+            if (size(actor_layer1 % w, 1) >= 1 .and. size(actor_layer1 % w, 2) >= 4 .and. size(actor_layer1 % b) >= 4) then
                 ! Layer 1: input -> hidden
-                z1(1) = state(1) * layer1 % w(1, 1) + layer1 % b(1)
-                z1(2) = state(1) * layer1 % w(1, 2) + layer1 % b(2)
-                hidden = layer_activation(layer1, z1)
+                z1(1) = state(1) * actor_layer1 % w(1, 1) + actor_layer1 % b(1)
+                z1(2) = state(1) * actor_layer1 % w(1, 2) + actor_layer1 % b(2)
+                hidden(1) = z1(1)
+                hidden(2) = z1(2)
+                if (z1(1) > 0.0) hidden(1) = z1(1) else hidden(1) = 0.0  ! ReLU
+                if (z1(2) > 0.0) hidden(2) = z1(2) else hidden(2) = 0.0  ! ReLU
                 
-                ! Layer 2: hidden -> output
-                if (allocated(layer2 % w) .and. allocated(layer2 % b)) then
-                    if (size(layer2 % w, 1) >= 2 .and. size(layer2 % w, 2) >= 1 .and. size(layer2 % b) >= 1) then
-                        z2(1) = hidden(1) * layer2 % w(1, 1) + hidden(2) * layer2 % w(2, 1) + layer2 % b(1)
-                        output = layer_activation(layer2, z2)
-                        action(1) = output(1)
+                ! Layer 2: hidden -> hidden
+                if (allocated(actor_layer2 % w) .and. allocated(actor_layer2 % b)) then
+                    if (size(actor_layer2 % w, 1) >= 4 .and. size(actor_layer2 % w, 2) >= 2 .and. size(actor_layer2 % b) >= 2) then
+                        z2(1) = hidden(1) * actor_layer2 % w(1, 1) + hidden(2) * actor_layer2 % w(2, 1) + actor_layer2 % b(1)
+                        z2(2) = hidden(1) * actor_layer2 % w(1, 2) + hidden(2) * actor_layer2 % w(2, 2) + actor_layer2 % b(2)
+                        if (z2(1) > 0.0) hidden(1) = z2(1) else hidden(1) = 0.0  ! ReLU
+                        if (z2(2) > 0.0) hidden(2) = z2(2) else hidden(2) = 0.0  ! ReLU
+                        
+                        ! Layer 3: hidden -> output
+                        if (allocated(actor_layer3 % w) .and. allocated(actor_layer3 % b)) then
+                            if (size(actor_layer3 % w, 1) >= 2 .and. size(actor_layer3 % w, 2) >= 1 .and. size(actor_layer3 % b) >= 1) then
+                                output(1) = hidden(1) * actor_layer3 % w(1, 1) + hidden(2) * actor_layer3 % w(2, 1) + actor_layer3 % b(1)
+                                output(1) = tanh(output(1))  ! Tanh activation
+                                action(1) = output(1) * upper_bound  ! Scale to action bounds
+                            else
+                                action(1) = hidden(1) * 0.1
+                            end if
+                        else
+                            action(1) = hidden(1) * 0.1
+                        end if
                     else
                         action(1) = hidden(1) * 0.1
                     end if
@@ -78,7 +98,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             action(1) = state(1) * 0.1
         end if
         
-        ! Add small noise for exploration
+        ! Add exploration noise
         noise = randn(1)
         action(1) = action(1) + noise(1) * 0.1
     end if
