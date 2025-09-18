@@ -1,5 +1,6 @@
 subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     use mod_random, only: randn
+    use mod_activation, only: relu, sigmoid, tanh_activation
     implicit none
     
     ! Input/Output parameters
@@ -12,6 +13,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     real :: state(1), action(1)
     real :: lower_bound, upper_bound
     real :: noise(1)
+    real :: temp_value
     
     ! Initialize bounds
     lower_bound = -5.0
@@ -27,13 +29,19 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Test: Use mod_random module
+    ! Test: Use mod_activation module
     if (Simu_Step_In == 0) then
         action(1) = 0.0
     else
         ! Use randn from mod_random
         noise = randn(1)
-        action(1) = state(1) * 0.1 + noise(1) * 0.1
+        
+        ! Test activation functions
+        temp_value = state(1) * 0.1 + noise(1) * 0.1
+        temp_value = relu(temp_value)  ! Apply ReLU activation
+        temp_value = sigmoid(temp_value)  ! Apply sigmoid activation
+        
+        action(1) = temp_value * 2.0 - 1.0  ! Scale to [-1, 1]
     end if
     
     ! Ensure action is within bounds
