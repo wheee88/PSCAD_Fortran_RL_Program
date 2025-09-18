@@ -55,8 +55,9 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
                 ! Layer 1: input -> hidden
                 z1(1) = state(1) * actor_layer1 % w(1, 1) + actor_layer1 % b(1)
                 z1(2) = state(1) * actor_layer1 % w(1, 2) + actor_layer1 % b(2)
-                if (z1(1) > 0.0) hidden1 = z1(1) else hidden1 = 0.0  ! ReLU
-                if (z1(2) > 0.0) hidden2 = z1(2) else hidden2 = 0.0  ! ReLU
+                ! ReLU activation
+                hidden1 = max(0.0, z1(1))
+                hidden2 = max(0.0, z1(2))
                 
                 ! Layer 2: hidden -> output
                 if (allocated(actor_layer2 % w) .and. allocated(actor_layer2 % b)) then
