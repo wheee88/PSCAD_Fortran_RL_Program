@@ -2,7 +2,6 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     use mod_random, only: randn
     use mod_activation, only: relu, sigmoid, tanhf
     use mod_layer, only: layer_type, layer_constructor, layer_set_activation
-    use mod_network, only: network_type, network_constructor
     implicit none
     
     ! Input/Output parameters
@@ -13,7 +12,6 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     
     ! Local variables
     type(layer_type) :: test_layer
-    type(network_type) :: test_network
     real :: state(1), action(1)
     real :: lower_bound, upper_bound
     real :: noise(1)
@@ -33,15 +31,12 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Test: Use mod_network constructor
+    ! Test: Only use layer_constructor (no network_constructor)
     if (Simu_Step_In == 0) then
         ! Create a simple layer
         test_layer = layer_constructor(1, 1)
+        ! Set activation function
         call layer_set_activation(test_layer, 'relu')
-        
-        ! Create a simple network
-        test_network = network_constructor([1, 2, 1], activation='relu')
-        
         action(1) = 0.0
     else
         ! Use randn from mod_random
