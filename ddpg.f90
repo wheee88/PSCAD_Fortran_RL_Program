@@ -55,20 +55,20 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
                 ! Layer 1: input -> hidden
                 z1(1) = state(1) * actor_layer1 % w(1, 1) + actor_layer1 % b(1)
                 z1(2) = state(1) * actor_layer1 % w(1, 2) + actor_layer1 % b(2)
-                if (z1(1) > 0.0) hidden(1) = z1(1) else hidden(1) = 0.0  ! ReLU
-                if (z1(2) > 0.0) hidden(2) = z1(2) else hidden(2) = 0.0  ! ReLU
+                if (z1(1) > 0.0) h1 = z1(1) else h1 = 0.0  ! ReLU
+                if (z1(2) > 0.0) h2 = z1(2) else h2 = 0.0  ! ReLU
                 
                 ! Layer 2: hidden -> output
                 if (allocated(actor_layer2 % w) .and. allocated(actor_layer2 % b)) then
                     if (size(actor_layer2 % w, 1) >= 2 .and. size(actor_layer2 % w, 2) >= 1 .and. size(actor_layer2 % b) >= 1) then
-                        z2(1) = hidden(1) * actor_layer2 % w(1, 1) + hidden(2) * actor_layer2 % w(2, 1) + actor_layer2 % b(1)
+                        z2(1) = h1 * actor_layer2 % w(1, 1) + h2 * actor_layer2 % w(2, 1) + actor_layer2 % b(1)
                         output(1) = tanh(z2(1))  ! Tanh activation
                         action(1) = output(1) * upper_bound  ! Scale to action bounds
                     else
-                        action(1) = hidden(1) * 0.1
+                        action(1) = h1 * 0.1
                     end if
                 else
-                    action(1) = hidden(1) * 0.1
+                    action(1) = h1 * 0.1
                 end if
             else
                 action(1) = state(1) * 0.1
