@@ -13,7 +13,6 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     real :: state(1), action(1)
     real :: lower_bound, upper_bound
     real :: noise
-    integer :: FID
     
     ! Initialize bounds
     lower_bound = -5.0
@@ -29,15 +28,10 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Test 1: Just create network (no output, no activation setting)
+    ! Test: Just create network (no file I/O, no output)
     if (Simu_Step_In == 0) then
         ! Create a very simple network
         actor_model = network_constructor([1, 2, 1], activation='linear')
-        
-        ! Test file I/O
-        Open(Unit=FID, File="test_network.txt", action='write')
-        Write(FID, *) "Network created successfully"
-        Close(FID)
     end if
     
     ! Simple action without using network
