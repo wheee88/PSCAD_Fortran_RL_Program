@@ -130,7 +130,6 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         ou_state = ou_state + ou_noise
         
         ! Decay exploration noise over time
-        real :: noise_scale
         noise_scale = max(0.1, 1.0 - real(total_episodes) * 0.001)
         
         ! Add OU noise to action
