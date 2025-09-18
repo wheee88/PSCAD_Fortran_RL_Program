@@ -67,7 +67,10 @@ contains
     ! TensorFlow to build a static graph out of the logic and computations in our function.
     ! This provides a large speed up for blocks of code that contain many small TensorFlow operations such as this one.
     !@tf.function
-    subroutine buffer_update(self, state_batch, action_batch, reward_batch, next_state_batch, actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
+    subroutine buffer_update(self, state_batch, action_batch, reward_batch, next_state_batch, &
+                            actor_model, critic_model_1, critic_model_2, critic_model, &
+                            target_actor, target_critic_1, target_critic_2, target_critic, &
+                            critic_lr, actor_lr, gamma)
         ! Training and updating Actor & Critic networks.
         ! See Pseudo Code.
         implicit none
@@ -133,7 +136,9 @@ contains
     end subroutine buffer_update
     
     ! We compute the loss and update parameters
-    subroutine buffer_learn(self, actor_model, critic_model_1, critic_model_2, critic_model, target_actor, target_critic_1, target_critic_2, target_critic, critic_lr, actor_lr, gamma)
+    subroutine buffer_learn(self, actor_model, critic_model_1, critic_model_2, critic_model, &
+                           target_actor, target_critic_1, target_critic_2, target_critic, &
+                           critic_lr, actor_lr, gamma)
         implicit none
         type(buffer_type), intent(in out) :: self
         real, intent(in) :: critic_lr, actor_lr, gamma
