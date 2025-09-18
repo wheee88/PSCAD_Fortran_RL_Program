@@ -1,6 +1,7 @@
 subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     use mod_random, only: randn
     use mod_activation, only: relu, sigmoid, tanhf
+    use mod_layer, only: layer_type, layer_constructor, layer_set_activation
     implicit none
     
     ! Input/Output parameters
@@ -10,6 +11,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     integer, intent(out) :: Simu_Step_Out
     
     ! Local variables
+    type(layer_type) :: test_layer
     real :: state(1), action(1)
     real :: lower_bound, upper_bound
     real :: noise(1)
@@ -29,8 +31,12 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Test: Use mod_activation module with proper array inputs
+    ! Test: Use mod_layer module
     if (Simu_Step_In == 0) then
+        ! Create a simple layer
+        test_layer = layer_constructor(1, 1)
+        ! Set activation function
+        call layer_set_activation(test_layer, 'relu')
         action(1) = 0.0
     else
         ! Use randn from mod_random
