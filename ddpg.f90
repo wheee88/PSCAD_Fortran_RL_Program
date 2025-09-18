@@ -1,4 +1,5 @@
 subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
+    use mod_network, only: network_type, network_constructor
     implicit none
     
     ! Input/Output parameters
@@ -8,6 +9,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     integer, intent(out) :: Simu_Step_Out
     
     ! Local variables
+    type(network_type) :: actor_model
     real :: state(1), action(1)
     real :: lower_bound, upper_bound
     real :: noise
@@ -27,7 +29,18 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Simple action with noise
+    ! Test 1: Just create network (no output, no activation setting)
+    if (Simu_Step_In == 0) then
+        ! Create a very simple network
+        actor_model = network_constructor([1, 2, 1], activation='linear')
+        
+        ! Test file I/O
+        Open(Unit=FID, File="test_network.txt", action='write')
+        Write(FID, *) "Network created successfully"
+        Close(FID)
+    end if
+    
+    ! Simple action without using network
     if (Simu_Step_In == 0) then
         action(1) = 0.0
     else
@@ -42,13 +55,6 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         action(1) = lower_bound
     elseif (action(1) > upper_bound) then
         action(1) = upper_bound
-    end if
-    
-    ! Test file I/O (simple version)
-    if (Simu_Step_In == 0) then
-        Open(Unit=FID, File="test_output.txt", action='write')
-        Write(FID, *) "DDPG started"
-        Close(FID)
     end if
     
     ! Set outputs
