@@ -16,7 +16,6 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     real :: lower_bound, upper_bound
     real :: noise(1)
     real :: temp_value(1)
-    real :: simple_result
     
     ! Initialize bounds
     lower_bound = -5.0
@@ -32,7 +31,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     ! Set state
     state(1) = state_1
     
-    ! Test: Manual network construction without matmul
+    ! Test: Manual network construction without accessing weights/biases
     if (Simu_Step_In == 0) then
         ! Create layers manually
         layer1 = layer_constructor(1, 2)  ! Input to hidden
@@ -46,15 +45,13 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
         
         action(1) = 0.0
     else
-        ! Simple computation without matmul
-        simple_result = state(1) * layer1 % w(1, 1) + layer1 % b(1)
-        
-        ! Use simple result as action
-        action(1) = simple_result * 0.1
-        
-        ! Add small noise for exploration
+        ! Simple action without accessing layer weights/biases
         noise = randn(1)
-        action(1) = action(1) + noise(1) * 0.1
+        temp_value(1) = state(1) * 0.1 + noise(1) * 0.1
+        temp_value = relu(temp_value)  ! Apply ReLU activation
+        temp_value = sigmoid(temp_value)  ! Apply sigmoid activation
+        
+        action(1) = temp_value(1) * 2.0 - 1.0  ! Scale to [-1, 1]
     end if
     
     ! Ensure action is within bounds
