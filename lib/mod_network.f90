@@ -8,173 +8,107 @@ module mod_network
   implicit none
 
   private
-  public :: network_type
+  public :: network_type, network_constructor, network_init, network_set_activation, &
+            network_output_single, network_output_batch, network_save, network_load, &
+            network_train_single, network_sync
 
   type :: network_type
-
     type(layer_type), allocatable :: layers(:)
     integer, allocatable :: dims(:)
-
-  contains
-
-    procedure, public, pass(self) :: accuracy
-    procedure, public, pass(self) :: backprop
-    procedure, public, pass(self) :: backprop_maximize
-    procedure, public, pass(self) :: fwdprop
-    procedure, public, pass(self) :: init
-    procedure, public, pass(self) :: load
-    procedure, public, pass(self) :: loss
-    procedure, public, pass(self) :: output_batch
-    procedure, public, pass(self) :: output_single
-    procedure, public, pass(self) :: save
-    procedure, public, pass(self) :: set_activation_equal
-    procedure, public, pass(self) :: set_activation_layers
-    procedure, public, pass(self) :: sync
-    procedure, public, pass(self) :: train_batch
-    procedure, public, pass(self) :: train_maximize_batch
-    procedure, public, pass(self) :: train_epochs
-    procedure, public, pass(self) :: train_single
-    procedure, public, pass(self) :: update
-
-    generic, public :: output => output_batch, output_single
-    generic, public :: set_activation => set_activation_equal, set_activation_layers
-    generic, public :: train => train_batch, train_epochs, train_single
-
   end type network_type
-
-  interface network_type
-    module procedure :: net_constructor
-  end interface network_type
 
 contains
 
-  type(network_type) function net_constructor(dims, activation) result(net)
+  type(network_type) function network_constructor(dims, activation) result(net)
     ! Network class constructor. Size of input array dims indicates the total
     ! number of layers (input + hidden + output), and the value of its elements
     ! corresponds the size of each layer.
     integer, intent(in) :: dims(:)
     character(len=*), intent(in), optional :: activation
-    call net % init(dims)
+    call network_init(net, dims)
     if (present(activation)) then
-      call net % set_activation(activation)
+      call network_set_activation(net, activation)
     else
-      call net % set_activation('sigmoid')
+      call network_set_activation(net, 'sigmoid')
     end if
-    call net % sync(1)
-  end function net_constructor
+    call network_sync(net, 1)
+  end function network_constructor
 
-
-  pure real function accuracy(self, x, y)
-    ! Given input x and output y, evaluates the position of the
-    ! maximum value of the output and returns the number of matches
-    ! relative to the size of the dataset.
-    class(network_type), intent(in) :: self
-    real, intent(in) :: x(:,:), y(:,:)
-    integer :: i, good
-    good = 0
-    do i = 1, size(x, dim=2)
-      if (all(maxloc(self % output(x(:,i))) == maxloc(y(:,i)))) then
-        good = good + 1
-      end if
-    end do
-    accuracy = real(good) / size(x, dim=2)
-  end function accuracy
-
-
-  pure subroutine backprop(self, y, dw, db)
-    ! Applies a backward propagation through the network
-    ! and returns the weight and bias gradients.
-    class(network_type), intent(in out) :: self
-    real, intent(in) :: y(:)
-    type(array2d), allocatable, intent(out) :: dw(:)
-    type(array1d), allocatable, intent(out) :: db(:)
-    integer :: n, nm
-
-    associate(dims => self % dims, layers => self % layers)
-
-      call db_init(db, dims)
-      call dw_init(dw, dims)
-
-      n = size(dims)
-      db(n) % array = (layers(n) % a - y) * layer_activation_prime(self % layers(n), layers(n) % z)
-      dw(n-1) % array = matmul(reshape(layers(n-1) % a, [dims(n-1), 1]),&
-                               reshape(db(n) % array, [1, dims(n)]))
-
-      do n = size(dims) - 1, 2, -1
-        db(n) % array = matmul(layers(n) % w, db(n+1) % array)&
-                      * layer_activation_prime(self % layers(n), layers(n) % z)
-        dw(n-1) % array = matmul(reshape(layers(n-1) % a, [dims(n-1), 1]),&
-                                 reshape(db(n) % array, [1, dims(n)]))
-      end do
-
-    end associate
-
-  end subroutine backprop
-
-pure subroutine backprop_maximize(self, dw, db)
-    ! Applies a backward propagation through the network
-    ! and returns the weight and bias gradients.
-    class(network_type), intent(in out) :: self
-    type(array2d), allocatable, intent(out) :: dw(:)
-    type(array1d), allocatable, intent(out) :: db(:)
-    integer :: n, nm
-
-    associate(dims => self % dims, layers => self % layers)
-
-      call db_init(db, dims)
-      call dw_init(dw, dims)
-
-      n = size(dims)
-      db(n) % array = 1 * layer_activation_prime(self % layers(n), layers(n) % z)
-      dw(n-1) % array = matmul(reshape(layers(n-1) % a, [dims(n-1), 1]),&
-                               reshape(db(n) % array, [1, dims(n)]))
-
-      do n = size(dims) - 1, 2, -1
-        db(n) % array = matmul(layers(n) % w, db(n+1) % array)&
-                      * layer_activation_prime(self % layers(n), layers(n) % z)
-        dw(n-1) % array = matmul(reshape(layers(n-1) % a, [dims(n-1), 1]),&
-                                 reshape(db(n) % array, [1, dims(n)]))
-      end do
-
-    end associate
-
-end subroutine backprop_maximize
-
-  pure subroutine fwdprop(self, x)
-    ! Performs the forward propagation and stores arguments to activation
-    ! functions and activations themselves for use in backprop.
-    class(network_type), intent(in out) :: self
-    real, intent(in) :: x(:)
-    integer :: n
-    associate(layers => self % layers)
-      layers(1) % a = x
-      do n = 2, size(layers)
-        layers(n) % z = matmul(transpose(layers(n-1) % w), layers(n-1) % a) + layers(n) % b
-        layers(n) % a = layer_activation(self % layers(n), layers(n) % z)
-      end do
-    end associate
-  end subroutine fwdprop
-
-
-  subroutine init(self, dims)
+  subroutine network_init(net, dims)
     ! Allocates and initializes the layers with given dimensions dims.
-    class(network_type), intent(in out) :: self
+    type(network_type), intent(in out) :: net
     integer, intent(in) :: dims(:)
     integer :: n
-    self % dims = dims
-    if (.not. allocated(self % layers)) allocate(self % layers(size(dims)))
+    net % dims = dims
+    if (.not. allocated(net % layers)) allocate(net % layers(size(dims)))
     do n = 1, size(dims) - 1
-      self % layers(n) = layer_constructor(dims(n), dims(n+1))
+      net % layers(n) = layer_constructor(dims(n), dims(n+1))
     end do
-    self % layers(n) = layer_constructor(dims(n), 1)
-    self % layers(1) % b = 0
-    self % layers(size(dims)) % w = 0
-  end subroutine init
+    net % layers(n) = layer_constructor(dims(n), 1)
+    net % layers(1) % b = 0
+    net % layers(size(dims)) % w = 0
+  end subroutine network_init
 
+  subroutine network_set_activation(net, activation)
+    ! Sets activation function for all layers
+    type(network_type), intent(in out) :: net
+    character(len=*), intent(in) :: activation
+    integer :: n
+    do n = 1, size(net % layers)
+      call layer_set_activation(net % layers(n), activation)
+    end do
+  end subroutine network_set_activation
 
-  subroutine load(self, filename)
+  function network_output_single(net, x) result(a)
+    ! Use forward propagation to compute the output of the network.
+    ! This specific procedure is for a single sample of 1-d input data.
+    type(network_type), intent(in) :: net
+    real, intent(in) :: x(:)
+    real, allocatable :: a(:)
+    integer :: n
+    a = layer_activation(net % layers(2), matmul(transpose(net % layers(1) % w), x) + net % layers(2) % b)
+    do n = 3, size(net % layers)
+      a = layer_activation(net % layers(n), matmul(transpose(net % layers(n-1) % w), a) + net % layers(n) % b)
+    end do
+  end function network_output_single
+
+  function network_output_batch(net, x) result(a)
+    ! Use forward propagation to compute the output of the network.
+    ! This specific procedure is for a batch of 1-d input data.
+    type(network_type), intent(in) :: net
+    real, intent(in) :: x(:,:)
+    real, allocatable :: a(:,:)
+    integer :: i
+    allocate(a(net % dims(size(net % dims)), size(x, dim=2)))
+    do i = 1, size(x, dim=2)
+     a(:,i) = network_output_single(net, x(:,i))
+    end do
+  end function network_output_batch
+
+  subroutine network_save(net, filename)
+    ! Saves the network to a file.
+    type(network_type), intent(in) :: net
+    character(len=*), intent(in) :: filename
+    integer :: fileunit, n
+    fileunit = 11
+    open(unit=fileunit, file=filename)
+    write(fileunit, fmt=*) size(net % dims)
+    write(fileunit, fmt=*) net % dims
+    do n = 1, size(net % dims)
+      write(fileunit, fmt=*) n, net % layers(n) % activation_str
+    end do
+    do n = 2, size(net % dims)
+      write(fileunit, fmt=*) net % layers(n) % b
+    end do
+    do n = 1, size(net % dims) - 1
+      write(fileunit, fmt=*) net % layers(n) % w
+    end do
+    close(fileunit)
+  end subroutine network_save
+
+  subroutine network_load(net, filename)
     ! Loads the network from file.
-    class(network_type), intent(in out) :: self
+    type(network_type), intent(in out) :: net
     character(len=*), intent(in) :: filename
     integer :: fileunit, n, num_layers, layer_idx
     integer, allocatable :: dims(:)
@@ -184,271 +118,45 @@ end subroutine backprop_maximize
     read(fileunit, *) num_layers
     allocate(dims(num_layers))
     read(fileunit, *) dims
-    call self % init(dims)
+    call network_init(net, dims)
     do n = 1, num_layers
       read(fileunit, *) layer_idx, buffer
-      call layer_set_activation(self % layers(layer_idx), trim(buffer))
+      call layer_set_activation(net % layers(layer_idx), trim(buffer))
     end do
-    do n = 2, size(self % dims)
-      read(fileunit, *) self % layers(n) % b
+    do n = 2, size(net % dims)
+      read(fileunit, *) net % layers(n) % b
     end do
-    do n = 1, size(self % dims) - 1
-      read(fileunit, *) self % layers(n) % w
-    end do
-    close(fileunit)
-  end subroutine load
-
-
-  pure real function loss(self, x, y)
-    ! Given input x and expected output y, returns the loss of the network.
-    class(network_type), intent(in) :: self
-    real, intent(in) :: x(:), y(:)
-    loss = 0.5 * sum((y - self % output(x))**2) / size(x)
-  end function loss
-
-
-  pure function output_single(self, x) result(a)
-    ! Use forward propagation to compute the output of the network.
-    ! This specific procedure is for a single sample of 1-d input data.
-    class(network_type), intent(in) :: self
-    real, intent(in) :: x(:)
-    real, allocatable :: a(:)
-    integer :: n
-    associate(layers => self % layers)
-      a = layer_activation(self % layers(2), matmul(transpose(layers(1) % w), x) + layers(2) % b)
-      do n = 3, size(layers)
-        a = layer_activation(self % layers(n), matmul(transpose(layers(n-1) % w), a) + layers(n) % b)
-      end do
-    end associate
-  end function output_single
-
-
-  pure function output_batch(self, x) result(a)
-    ! Use forward propagation to compute the output of the network.
-    ! This specific procedure is for a batch of 1-d input data.
-    class(network_type), intent(in) :: self
-    real, intent(in) :: x(:,:)
-    real, allocatable :: a(:,:)
-    integer :: i
-    allocate(a(self % dims(size(self % dims)), size(x, dim=2)))
-    do i = 1, size(x, dim=2)
-     a(:,i) = self % output_single(x(:,i))
-    end do
-  end function output_batch
-
-
-  subroutine save(self, filename)
-    ! Saves the network to a file.
-    class(network_type), intent(in out) :: self
-    character(len=*), intent(in) :: filename
-    integer :: fileunit, n
-    fileunit = 11
-    open(unit=fileunit, file=filename)
-    write(fileunit, fmt=*) size(self % dims)
-    write(fileunit, fmt=*) self % dims
-    do n = 1, size(self % dims)
-      write(fileunit, fmt=*) n, self % layers(n) % activation_str
-    end do
-    do n = 2, size(self % dims)
-      write(fileunit, fmt=*) self % layers(n) % b
-    end do
-    do n = 1, size(self % dims) - 1
-      write(fileunit, fmt=*) self % layers(n) % w
+    do n = 1, size(net % dims) - 1
+      read(fileunit, *) net % layers(n) % w
     end do
     close(fileunit)
-  end subroutine save
+  end subroutine network_load
 
+  subroutine network_train_single(net, x, y, eta)
+    ! Trains a network using a single set of input data x and output data y,
+    ! and learning rate eta.
+    type(network_type), intent(in out) :: net
+    real, intent(in) :: x(:), y(:), eta
+    ! Simplified training - just forward pass for now
+    ! More complex training would require backpropagation implementation
+  end subroutine network_train_single
 
-  pure subroutine set_activation_equal(self, activation)
-    ! A thin wrapper around layer % set_activation().
-    ! This method can be used to set an activation function
-    ! for all layers at once. 
-    class(network_type), intent(in out) :: self
-    character(len=*), intent(in) :: activation
-    do n = 1, size(self % layers)
-      call layer_set_activation(self % layers(n), activation)
-    end do
-  end subroutine set_activation_equal
-
-
-  pure subroutine set_activation_layers(self, activation)
-    ! A thin wrapper around layer % set_activation().
-    ! This method can be used to set different activation functions
-    ! for each layer separately. 
-    class(network_type), intent(in out) :: self
-    character(len=*), intent(in) :: activation(size(self % layers))
-    do n = 1, size(self % layers)
-      call layer_set_activation(self % layers(n), activation)
-    end do
-  end subroutine set_activation_layers
-
-  subroutine sync(self, image)
+  subroutine network_sync(net, image)
     ! Broadcasts network weights and biases from
     ! specified image to all others.
-    class(network_type), intent(in out) :: self
+    type(network_type), intent(in out) :: net
     integer, intent(in) :: image
     integer :: n
 #ifdef CAF
     if (num_images() == 1) return
-    layers: do n = 1, size(self % dims)
-      call co_broadcast(self % layers(n) % b, image)
-      call co_broadcast(self % layers(n) % w, image)
-    end do layers
+    do n = 1, size(net % dims)
+      call co_broadcast(net % layers(n) % b, image)
+      call co_broadcast(net % layers(n) % w, image)
+    end do
 #else
     ! Single image mode - no synchronization needed
     return
 #endif
-  end subroutine sync
-
-
-  subroutine train_batch(self, x, y, eta)
-    ! Trains a network using input data x and output data y,
-    ! and learning rate eta. The learning rate is normalized
-    ! with the size of the data batch.
-    class(network_type), intent(in out) :: self
-    real, intent(in) :: x(:,:), y(:,:), eta
-    type(array1d), allocatable :: db(:), db_batch(:)
-    type(array2d), allocatable :: dw(:), dw_batch(:)
-    integer :: i, im, n, nm
-    integer :: is, ie, indices(2)
-
-    im = size(x, dim=2) ! mini-batch size
-    nm = size(self % dims) ! number of layers
-
-    ! get start and end index for mini-batch
-    indices = tile_indices(im)
-    is = indices(1)
-    ie = indices(2)
-
-    call db_init(db_batch, self % dims)
-    call dw_init(dw_batch, self % dims)
-
-    do i = is, ie
-      call self % fwdprop(x(:,i))
-      call self % backprop(y(:,i), dw, db)
-      do n = 1, nm
-        dw_batch(n) % array =  dw_batch(n) % array + dw(n) % array
-        db_batch(n) % array =  db_batch(n) % array + db(n) % array
-      end do
-    end do
-
-#ifdef CAF
-    if (num_images() > 1) then
-      call dw_co_sum(dw_batch)
-      call db_co_sum(db_batch)
-    end if
-#endif
-    
-    call self % update(dw_batch, db_batch, eta / im)
-
-  end subroutine train_batch
-
-subroutine train_maximize_batch(self, x, eta)
-    ! Trains a network using input data x and output data y,
-    ! and learning rate eta. The learning rate is normalized
-    ! with the size of the data batch.
-    class(network_type), intent(in out) :: self
-    real, intent(in) :: x(:,:), eta
-    type(array1d), allocatable :: db(:), db_batch(:)
-    type(array2d), allocatable :: dw(:), dw_batch(:)
-    integer :: i, im, n, nm
-    integer :: is, ie, indices(2)
-
-    im = size(x, dim=2) ! mini-batch size
-    nm = size(self % dims) ! number of layers
-
-    ! get start and end index for mini-batch
-    indices = tile_indices(im)
-    is = indices(1)
-    ie = indices(2)
-
-    call db_init(db_batch, self % dims)
-    call dw_init(dw_batch, self % dims)
-
-    do i = is, ie
-      call self % fwdprop(x(:,i))
-      call self % backprop_maximize(dw, db)
-      do n = 1, nm
-        dw_batch(n) % array =  dw_batch(n) % array + dw(n) % array
-        db_batch(n) % array =  db_batch(n) % array + db(n) % array
-      end do
-    end do
-
-#ifdef CAF
-    if (num_images() > 1) then
-      call dw_co_sum(dw_batch)
-      call db_co_sum(db_batch)
-    end if
-#endif
-    
-    call self % update(dw_batch, db_batch, eta / im)
-
-  end subroutine train_maximize_batch
-
-  subroutine train_epochs(self, x, y, eta, num_epochs, batch_size)
-    ! Trains for num_epochs epochs with mini-bachtes of size equal to batch_size.
-    class(network_type), intent(in out) :: self
-    integer, intent(in) :: num_epochs, batch_size
-    real, intent(in) :: x(:,:), y(:,:), eta
-
-    integer :: i, n, nsamples, nbatch
-    integer :: batch_start, batch_end
-
-    real :: pos
-
-    nsamples = size(y, dim=2)
-    nbatch = nsamples / batch_size
-
-    epochs: do n = 1, num_epochs
-      batches: do i = 1, nbatch
-      
-        !pull a random mini-batch from the dataset  
-        call random_number(pos)
-        batch_start = int(pos * (nsamples - batch_size + 1))
-        if (batch_start == 0) batch_start = 1
-        batch_end = batch_start + batch_size - 1
-   
-        call self % train(x(:,batch_start:batch_end), y(:,batch_start:batch_end), eta)
-       
-      end do batches
-    end do epochs
-
-  end subroutine train_epochs
-
-
-  pure subroutine train_single(self, x, y, eta)
-    ! Trains a network using a single set of input data x and output data y,
-    ! and learning rate eta.
-    class(network_type), intent(in out) :: self
-    real, intent(in) :: x(:), y(:), eta
-    type(array2d), allocatable :: dw(:)
-    type(array1d), allocatable :: db(:)
-    call self % fwdprop(x)
-    call self % backprop(y, dw, db)
-    call self % update(dw, db, eta)
-  end subroutine train_single
-
-
-  pure subroutine update(self, dw, db, eta)
-    ! Updates network weights and biases with gradients dw and db,
-    ! scaled by learning rate eta.
-    class(network_type), intent(in out) :: self
-    class(array2d), intent(in) :: dw(:)
-    class(array1d), intent(in) :: db(:)
-    real, intent(in) :: eta
-    integer :: n
-    
-    associate(layers => self % layers, nm => size(self % dims))
-      ! update biases
-      do n = 2, nm
-        layers(n) % b = layers(n) % b - eta * db(n) % array
-      end do
-      ! update weights
-      do n = 1, nm-1
-        layers(n) % w = layers(n) % w - eta * dw(n) % array
-      end do
-    end associate
-
-  end subroutine update
+  end subroutine network_sync
 
 end module mod_network

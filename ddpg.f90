@@ -1,7 +1,8 @@
 subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     use mod_OUActionNoise, only: noise_type
-    use mod_network, only: network_type
+    use mod_network, only: network_type, network_constructor, network_load, network_save, network_output_single
     use mod_buffer, only: buffer_type
+    use mod_layer, only: layer_set_activation
     
     implicit none
     type(buffer_type) :: buffer
@@ -30,19 +31,19 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     std_dev = 0.2
     ou_noise = noise_type(mean, std_dev)
      
-    actor_model = network_type([num_states, 256, 200, num_actions], activation='relu') !!!�����и�Сbug�����������layer��neuron֮������̫��
-    call actor_model%layers(4)%set_activation('tanh')
-    critic_model_1 = network_type([num_states, 16, 32], activation='relu')
-    critic_model_2 = network_type([num_actions, 32], activation='relu')
-    critic_model = network_type([64,256,200,1], activation='relu')
-    call critic_model%layers(4)%set_activation('linear')
+    actor_model = network_constructor([num_states, 256, 200, num_actions], activation='relu') !!!�����и�Сbug�����������layer��neuron֮������̫��
+    call layer_set_activation(actor_model%layers(4), 'tanh')
+    critic_model_1 = network_constructor([num_states, 16, 32], activation='relu')
+    critic_model_2 = network_constructor([num_actions, 32], activation='relu')
+    critic_model = network_constructor([64,256,200,1], activation='relu')
+    call layer_set_activation(critic_model%layers(4), 'linear')
     
-    target_actor = network_type([num_states, 256, 200, num_actions], activation='relu')
-    call target_actor%layers(4)%set_activation('tanh')
-    target_critic_1 = network_type([num_states, 16, 32], activation='relu')
-    target_critic_2 = network_type([num_actions, 32], activation='relu')
-    target_critic = network_type([64,256,200,1], activation='relu')
-    call target_critic%layers(4)%set_activation('linear')
+    target_actor = network_constructor([num_states, 256, 200, num_actions], activation='relu')
+    call layer_set_activation(target_actor%layers(4), 'tanh')
+    target_critic_1 = network_constructor([num_states, 16, 32], activation='relu')
+    target_critic_2 = network_constructor([num_actions, 32], activation='relu')
+    target_critic = network_constructor([64,256,200,1], activation='relu')
+    call layer_set_activation(target_critic%layers(4), 'linear')
     
     ! Making the weights equal initially
     do i = 1, size(actor_model%layers)
@@ -86,24 +87,24 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             INQUIRE (file='PSCAD_actor.txt', exist=alive)
             if (alive) then
                 !/// Not the fist eisode: Load the weights
-                call actor_model%load("PSCAD_actor.txt")
-                call critic_model_1%load("PSCAD_critic_1.txt")
-                call critic_model_2%load("PSCAD_critic_2.txt")
-                call critic_model%load("PSCAD_critic.txt")
-                call target_actor%load("PSCAD_target_actor.txt")
-                call target_critic_1%load("PSCAD_target_critic_1.txt")
-                call target_critic_2%load("PSCAD_target_critic_2.txt")
-                call target_critic%load("PSCAD_target_critic.txt")
+                call network_load(actor_model, "PSCAD_actor.txt")
+                call network_load(critic_model_1, "PSCAD_critic_1.txt")
+                call network_load(critic_model_2, "PSCAD_critic_2.txt")
+                call network_load(critic_model, "PSCAD_critic.txt")
+                call network_load(target_actor, "PSCAD_target_actor.txt")
+                call network_load(target_critic_1, "PSCAD_target_critic_1.txt")
+                call network_load(target_critic_2, "PSCAD_target_critic_2.txt")
+                call network_load(target_critic, "PSCAD_target_critic.txt")
             else
                 !/// First epiosde: Save the weights
-                call actor_model%save("PSCAD_actor.txt")
-                call critic_model_1%save("PSCAD_critic_1.txt")
-                call critic_model_2%save("PSCAD_critic_2.txt")
-                call critic_model%save("PSCAD_critic.txt")
-                call target_actor%save("PSCAD_target_actor.txt")
-                call target_critic_1%save("PSCAD_target_critic_1.txt")
-                call target_critic_2%save("PSCAD_target_critic_2.txt")
-                call target_critic%save("PSCAD_target_critic.txt")
+                call network_save(actor_model, "PSCAD_actor.txt")
+                call network_save(critic_model_1, "PSCAD_critic_1.txt")
+                call network_save(critic_model_2, "PSCAD_critic_2.txt")
+                call network_save(critic_model, "PSCAD_critic.txt")
+                call network_save(target_actor, "PSCAD_target_actor.txt")
+                call network_save(target_critic_1, "PSCAD_target_critic_1.txt")
+                call network_save(target_critic_2, "PSCAD_target_critic_2.txt")
+                call network_save(target_critic, "PSCAD_target_critic.txt")
             
                 ! Save the experience buffer
                 Open(Unit=FID, File="buffer_counter_store",action='readwrite',form='unformatted',access='stream')
@@ -164,14 +165,14 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             Close(FID)
             
             ! Load the weights
-            call actor_model%load("PSCAD_actor.txt")
-            call critic_model_1%load("PSCAD_critic_1.txt")
-            call critic_model_2%load("PSCAD_critic_2.txt")
-            call critic_model%load("PSCAD_critic.txt")
-            call target_actor%load("PSCAD_target_actor.txt")
-            call target_critic_1%load("PSCAD_target_critic_1.txt")
-            call target_critic_2%load("PSCAD_target_critic_2.txt")
-            call target_critic%load("PSCAD_target_critic.txt")
+            call network_load(actor_model, "PSCAD_actor.txt")
+            call network_load(critic_model_1, "PSCAD_critic_1.txt")
+            call network_load(critic_model_2, "PSCAD_critic_2.txt")
+            call network_load(critic_model, "PSCAD_critic.txt")
+            call network_load(target_actor, "PSCAD_target_actor.txt")
+            call network_load(target_critic_1, "PSCAD_target_critic_1.txt")
+            call network_load(target_critic_2, "PSCAD_target_critic_2.txt")
+            call network_load(target_critic, "PSCAD_target_critic.txt")
             
             ! Load the experience buffer
             Open(Unit=FID, File="buffer_counter_store",action='readwrite',form='unformatted',access='stream')
@@ -238,14 +239,14 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
             Close(FID)
 
             ! Save the weights
-            call actor_model%save("PSCAD_actor.txt")
-            call critic_model_1%save("PSCAD_critic_1.txt")
-            call critic_model_2%save("PSCAD_critic_2.txt")
-            call critic_model%save("PSCAD_critic.txt")
-            call target_actor%save("PSCAD_target_actor.txt")
-            call target_critic_1%save("PSCAD_target_critic_1.txt")
-            call target_critic_2%save("PSCAD_target_critic_2.txt")
-            call target_critic%save("PSCAD_target_critic.txt")
+            call network_save(actor_model, "PSCAD_actor.txt")
+            call network_save(critic_model_1, "PSCAD_critic_1.txt")
+            call network_save(critic_model_2, "PSCAD_critic_2.txt")
+            call network_save(critic_model, "PSCAD_critic.txt")
+            call network_save(target_actor, "PSCAD_target_actor.txt")
+            call network_save(target_critic_1, "PSCAD_target_critic_1.txt")
+            call network_save(target_critic_2, "PSCAD_target_critic_2.txt")
+            call network_save(target_critic, "PSCAD_target_critic.txt")
             
             ! Excute action and save it
             action = policy(state, lower_bound, upper_bound, actor_model, ou_noise)
@@ -282,7 +283,7 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     else
         state(1) = state_1
         ! Load the weights
-        call actor_model%load("PSCAD_actor.txt")
+        call network_load(actor_model, "PSCAD_actor.txt")
 
         ! Excute action
         action = policy(state, lower_bound, upper_bound, actor_model, ou_noise)
@@ -305,7 +306,7 @@ contains
         allocate(sampled_action(actor_model%dims(size(actor_model%dims))))
         allocate(legal_action(actor_model%dims(size(actor_model%dims))))
         
-        sampled_action = actor_model%output(state)
+        sampled_action = network_output_single(actor_model, state)
         sampled_action = sampled_action * upper_bound
         noise = ou_noise%ncall()
         ! Adding noise to action
