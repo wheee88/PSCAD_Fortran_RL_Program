@@ -11,24 +11,19 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     integer, intent(out) :: Simu_Step_Out
     
     ! Local variables
-    type(layer_type) :: actor_layer1, actor_layer2, actor_layer3
-    real :: state(1), action(1), prev_state(1)
+    type(layer_type) :: actor_layer1, actor_layer2
+    real :: state(1), action(1)
     real :: lower_bound, upper_bound
     real :: noise(1)
     real :: z1(2), hidden(2), z2(1), output(1)
-    real :: learning_rate, tau
-    integer :: episode_step
     
     ! DDPG parameters
-    learning_rate = 0.001
-    tau = 0.005
     lower_bound = -5.0
     upper_bound = 5.0
     
     ! Initialize arrays
     state = 0.0
     action = 0.0
-    prev_state = 0.0
     z1 = 0.0
     hidden = 0.0
     z2 = 0.0
@@ -42,49 +37,31 @@ subroutine ddpg(state_1,reward,Done,Simu_Step_In,action_1,Simu_Step_Out)
     
     ! Initialize networks (only once)
     if (Simu_Step_In == 0) then
-        ! Create actor network
-        actor_layer1 = layer_constructor(1, 4)  ! Input to hidden
-        actor_layer2 = layer_constructor(4, 2)  ! Hidden to hidden
-        actor_layer3 = layer_constructor(2, 1)  ! Hidden to output
+        ! Create simple 2-layer actor network
+        actor_layer1 = layer_constructor(1, 2)  ! Input to hidden
+        actor_layer2 = layer_constructor(2, 1)  ! Hidden to output
         
         ! Set activation functions
         call layer_set_activation(actor_layer1, 'relu')
-        call layer_set_activation(actor_layer2, 'relu')
-        call layer_set_activation(actor_layer3, 'tanh')
+        call layer_set_activation(actor_layer2, 'tanh')
         
         action(1) = 0.0
     else
-        ! Actor network forward pass
+        ! Simple 2-layer actor network forward pass
         if (allocated(actor_layer1 % w) .and. allocated(actor_layer1 % b)) then
-            if (size(actor_layer1 % w, 1) >= 1 .and. size(actor_layer1 % w, 2) >= 4 .and. size(actor_layer1 % b) >= 4) then
+            if (size(actor_layer1 % w, 1) >= 1 .and. size(actor_layer1 % w, 2) >= 2 .and. size(actor_layer1 % b) >= 2) then
                 ! Layer 1: input -> hidden
                 z1(1) = state(1) * actor_layer1 % w(1, 1) + actor_layer1 % b(1)
                 z1(2) = state(1) * actor_layer1 % w(1, 2) + actor_layer1 % b(2)
-                hidden(1) = z1(1)
-                hidden(2) = z1(2)
                 if (z1(1) > 0.0) hidden(1) = z1(1) else hidden(1) = 0.0  ! ReLU
                 if (z1(2) > 0.0) hidden(2) = z1(2) else hidden(2) = 0.0  ! ReLU
                 
-                ! Layer 2: hidden -> hidden
+                ! Layer 2: hidden -> output
                 if (allocated(actor_layer2 % w) .and. allocated(actor_layer2 % b)) then
-                    if (size(actor_layer2 % w, 1) >= 4 .and. size(actor_layer2 % w, 2) >= 2 .and. size(actor_layer2 % b) >= 2) then
+                    if (size(actor_layer2 % w, 1) >= 2 .and. size(actor_layer2 % w, 2) >= 1 .and. size(actor_layer2 % b) >= 1) then
                         z2(1) = hidden(1) * actor_layer2 % w(1, 1) + hidden(2) * actor_layer2 % w(2, 1) + actor_layer2 % b(1)
-                        z2(2) = hidden(1) * actor_layer2 % w(1, 2) + hidden(2) * actor_layer2 % w(2, 2) + actor_layer2 % b(2)
-                        if (z2(1) > 0.0) hidden(1) = z2(1) else hidden(1) = 0.0  ! ReLU
-                        if (z2(2) > 0.0) hidden(2) = z2(2) else hidden(2) = 0.0  ! ReLU
-                        
-                        ! Layer 3: hidden -> output
-                        if (allocated(actor_layer3 % w) .and. allocated(actor_layer3 % b)) then
-                            if (size(actor_layer3 % w, 1) >= 2 .and. size(actor_layer3 % w, 2) >= 1 .and. size(actor_layer3 % b) >= 1) then
-                                output(1) = hidden(1) * actor_layer3 % w(1, 1) + hidden(2) * actor_layer3 % w(2, 1) + actor_layer3 % b(1)
-                                output(1) = tanh(output(1))  ! Tanh activation
-                                action(1) = output(1) * upper_bound  ! Scale to action bounds
-                            else
-                                action(1) = hidden(1) * 0.1
-                            end if
-                        else
-                            action(1) = hidden(1) * 0.1
-                        end if
+                        output(1) = tanh(z2(1))  ! Tanh activation
+                        action(1) = output(1) * upper_bound  ! Scale to action bounds
                     else
                         action(1) = hidden(1) * 0.1
                     end if
